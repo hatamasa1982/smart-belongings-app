@@ -1,0 +1,957 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>私の持ち物リスト</title>
+    <style>
+        /* 全体のスタイルと背景（美しいグラデーション） */
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+            background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px 0;
+            color: #333;
+        }
+
+        /* メインの白い枠（グラスモーフィズム：すりガラス風） */
+        .container {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            width: 95%;
+            max-width: 600px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            margin-top: 0;
+            color: #4a5568;
+            font-size: 24px;
+        }
+
+        .form-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group.full-width {
+            /* 縦並びなので特別な幅設定は不要 */
+        }
+
+        /* タブのスタイル */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: #edf2f7;
+            padding: 5px;
+            border-radius: 12px;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: #4a5568;
+            transition: all 0.3s ease;
+        }
+        .tab-btn.active {
+            background: white;
+            color: #667eea;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        /* セクションの表示切り替え */
+        .section-view {
+            display: none;
+            animation: fadeIn 0.3s ease-out;
+        }
+        .section-view.active {
+            display: block;
+        }
+
+        label {
+            font-size: 14px;
+            color: #4a5568;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        /* テキスト入力欄とカテゴリ選択欄の見た目 */
+        input[type="text"], input[type="month"], select {
+            padding: 10px;
+            border: 1px solid #cbd5e0;
+            border-radius: 8px;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.3s;
+            background-color: white;
+            box-sizing: border-box; /* はみ出し防止 */
+        }
+
+        input[type="text"]:focus, input[type="month"]:focus, select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+        }
+
+        /* 追加・更新ボタンエリアのレイアウト */
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+
+        /* 追加・更新ボタンの見た目 */
+        button.add-btn {
+            background-color: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            flex-grow: 1; /* 余った幅を埋める */
+            transition: background-color 0.3s, transform 0.1s;
+        }
+
+        button.add-btn:hover { background-color: #5a67d8; }
+        button.add-btn:active { transform: scale(0.98); }
+
+        /* 編集モード用の更新ボタン色 */
+        button.update-btn {
+            background-color: #48bb78;
+        }
+        button.update-btn:hover { background-color: #38a169; }
+
+        /* キャンセルボタンの見た目 */
+        button.cancel-btn {
+            background-color: #a0aec0;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+            display: none; /* 初期状態は非表示 */
+        }
+        button.cancel-btn:hover { background-color: #718096; }
+        button.cancel-btn:active { transform: scale(0.98); }
+
+        /* 持ち物リストのスタイル */
+        ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        /* リストの各項目の見た目（カード風） */
+        li {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            animation: fadeIn 0.3s ease-out;
+            border-left: 5px solid #667eea; /* 左側にアクセントカラー */
+            position: relative;
+        }
+
+        /* 編集中のアイテムの見た目 */
+        li.editing {
+            border-left: 5px solid #48bb78;
+            background-color: #f0fff4;
+        }
+
+        /* ふわっと表示されるアニメーション */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* タブのスタイル */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: #edf2f7;
+            padding: 5px;
+            border-radius: 12px;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: #4a5568;
+            transition: all 0.3s ease;
+        }
+        .tab-btn.active {
+            background: white;
+            color: #667eea;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        /* セクションの表示切り替え */
+        .section-view {
+            display: none;
+            animation: fadeIn 0.3s ease-out;
+        }
+        .section-view.active {
+            display: block;
+        }
+
+        /* 項目別の見出し（区切り） */
+        .category-header {
+            background: transparent;
+            box-shadow: none;
+            border-left: none;
+            padding: 10px 5px 0 5px;
+            margin-bottom: 5px;
+            animation: none;
+        }
+        .category-header h3 {
+            margin: 0;
+            font-size: 16px;
+            color: #4a5568;
+            border-bottom: 2px solid #cbd5e0;
+            padding-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* カテゴリのタグ（ラベル） */
+        .category-tag {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            color: white;
+            display: inline-block;
+            margin-bottom: 8px;
+            background-color: #667eea;
+        }
+
+        .subcategory-tag {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            color: #4a5568;
+            background-color: #edf2f7;
+            display: inline-block;
+            margin-bottom: 8px;
+            margin-left: 5px;
+        }
+
+        /* 商品名と詳細を1列に並べるためのレイアウト */
+        .item-name-row {
+            display: flex;
+            align-items: center; /* 縦の真ん中で揃える */
+            flex-wrap: wrap; /* 画面が狭いときは折り返す */
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .item-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2d3748;
+        }
+
+        /* 詳細情報のバッジ風レイアウト */
+        .item-details-inline {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            font-size: 12px;
+            color: #4a5568;
+        }
+
+        .detail-badge {
+            background-color: #f7fafc;
+            padding: 3px 8px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            white-space: nowrap; /* テキストが途中で改行されないようにする */
+        }
+
+        .item-notes {
+            font-size: 13px;
+            color: #4a5568;
+            background-color: #f7fafc;
+            padding: 8px;
+            border-radius: 6px;
+        }
+
+        /* アクションボタン群（編集・削除） */
+        .action-buttons {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            gap: 8px;
+        }
+
+        /* 削除ボタンの見た目 */
+        .delete-btn {
+            background-color: transparent;
+            color: #fc8181;
+            border: 1px solid #fc8181;
+            border-radius: 6px;
+            padding: 5px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .delete-btn:hover {
+            background-color: #fc8181;
+            color: white;
+        }
+
+        /* 編集ボタンの見た目 */
+        .edit-btn {
+            background-color: transparent;
+            color: #48bb78;
+            border: 1px solid #48bb78;
+            border-radius: 6px;
+            padding: 5px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .edit-btn:hover {
+            background-color: #48bb78;
+            color: white;
+        }
+
+        /* 読み込み中の表示 */
+        .loading {
+            text-align: center;
+            color: #718096;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>📦 私の持ち物リスト</h1>
+        
+        <!-- タブ切り替えボタン -->
+        <div class="tabs">
+            <button id="tab-list" class="tab-btn active" onclick="switchTab('list')">📋 持ち物一覧</button>
+            <button id="tab-input" class="tab-btn" onclick="switchTab('input')">➕ 新しく登録する</button>
+        </div>
+
+        <!-- 登録・編集画面（初期は非表示） -->
+        <div id="section-input" class="section-view">
+            <div class="form-grid">
+            <div class="form-group">
+                <label>大項目</label>
+                <select id="itemCategoryMain" onchange="updateSubCategory()">
+                    <option value="">選択してください</option>
+                    <option value="衣類">衣類</option>
+                    <option value="ガジェット">ガジェット</option>
+                    <option value="バッグ">バッグ</option>
+                    <option value="文房具">文房具</option>
+                    <option value="その他">その他</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>中項目</label>
+                <select id="itemCategorySub">
+                    <option value="">大項目を先に選んでください</option>
+                </select>
+            </div>
+            
+            <div class="form-group full-width">
+                <label>小項目</label>
+                <input type="text" id="itemCategoryMinor" placeholder="例：スニーカー、Tシャツ、リュック など">
+            </div>
+            
+            <div class="form-group full-width">
+                <label>商品名</label>
+                <input type="text" id="itemName" placeholder="例：Bizテーラードジャケット">
+            </div>
+
+            <div class="form-group">
+                <label>色</label>
+                <input type="text" id="itemColor" placeholder="例：ブラック">
+            </div>
+            <div class="form-group">
+                <label>ブランド</label>
+                <input type="text" id="itemBrand" placeholder="例：WWS">
+            </div>
+
+            <div class="form-group">
+                <label>サイズ</label>
+                <input type="text" id="itemSize" list="sizeOptions" placeholder="例：M、26.5cm など">
+                <datalist id="sizeOptions">
+                    <option value="ONE SIZE">
+                    <option value="XS">
+                    <option value="S">
+                    <option value="M">
+                    <option value="L">
+                    <option value="XL">
+                    <option value="25.0cm">
+                    <option value="25.5cm">
+                    <option value="26.0cm">
+                    <option value="26.5cm">
+                    <option value="27.0cm">
+                    <option value="27.5cm">
+                    <option value="28.0cm">
+                </datalist>
+            </div>
+            <div class="form-group">
+                <label>買った時期</label>
+                <!-- monthタイプを使うと「2026年5月」のようにカレンダーから選べます -->
+                <input type="month" id="itemDate">
+            </div>
+
+            <div class="form-group">
+                <label>金額（円）</label>
+                <input type="number" id="itemPrice" placeholder="例：5000" inputmode="numeric">
+            </div>
+
+            <div class="form-group full-width">
+                <label>備考</label>
+                <input type="text" id="itemNotes" placeholder="例：お気に入り、仕事用 など">
+            </div>
+        </div>
+
+            <div class="button-group">
+                <button id="submitBtn" class="add-btn" onclick="saveItem()">リストに追加する ✨</button>
+                <button id="cancelBtn" class="cancel-btn" onclick="cancelEdit()">キャンセル</button>
+            </div>
+        </div>
+
+        <!-- 一覧画面（初期表示） -->
+        <div id="section-list" class="section-view active">
+            <!-- 並び替えコントロール -->
+        <div class="list-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h2 style="font-size: 16px; color: #4a5568; margin: 0;">登録アイテム</h2>
+            <select id="sortOrder" onchange="renderList()" style="padding: 5px 10px; border-radius: 6px; font-size: 14px; border: 1px solid #cbd5e0; background-color: white; width: auto;">
+                <option value="category" selected>項目別</option>
+                <option value="newest">新しい順</option>
+                <option value="oldest">古い順</option>
+            </select>
+        </div>
+
+        <!-- 持ち物が表示されるリスト -->
+        <ul id="itemList">
+            <div class="loading">⏳ データを読み込んでいます...</div>
+        </ul>
+        </div>
+    </div>
+
+    <script>
+        // --- ここからJavaScript（GASの中で動く専用の仕組み） ---
+        let items = [];
+        let editingId = null; // 現在編集中のアイテムID（編集中じゃないときはnull）
+
+        // タブ切り替え処理
+        function switchTab(tabId) {
+            document.querySelectorAll('.section-view').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById('section-' + tabId).classList.add('active');
+            document.getElementById('tab-' + tabId).classList.add('active');
+            
+            // 入力画面に切り替えた時、新規追加モードなら大項目をフォーカスする
+            if (tabId === 'input' && editingId === null && !document.getElementById('itemCategoryMain').value) {
+                document.getElementById('itemCategoryMain').focus();
+            }
+        }
+
+        // 項目（大項目）と分類（中項目）の連動データ
+        const categoryData = {
+            "衣類": ["ジャケット", "トップス", "ボトムス", "パンツ", "アウター", "インナー", "靴", "バッグ", "眼鏡", "その他"],
+            "ガジェット": [], // 中項目はスキップ可能
+            "文房具": ["筆記用具", "ノート・メモ", "収納用品", "その他"],
+            "バッグ": ["リュック・バックパック", "トートバッグ", "ショルダーバッグ", "その他"],
+            "その他": ["その他"]
+        };
+
+        // 項目が選ばれたときに、分類の選択肢を切り替える処理
+        function updateSubCategory() {
+            const mainSelect = document.getElementById('itemCategoryMain');
+            const subSelect = document.getElementById('itemCategorySub');
+            const selectedMain = mainSelect.value;
+
+            // 分類の選択肢を一旦リセット
+            subSelect.innerHTML = '<option value="">選択してください</option>';
+
+            // 選ばれた項目に連動する分類のリストを取得して追加
+            if (categoryData[selectedMain] && categoryData[selectedMain].length > 0) {
+                categoryData[selectedMain].forEach(sub => {
+                    const option = document.createElement('option');
+                    option.value = sub;
+                    option.textContent = sub;
+                    subSelect.appendChild(option);
+                });
+            } else if (categoryData[selectedMain] && categoryData[selectedMain].length === 0) {
+                // 中項目を持たない（ガジェットなど）場合
+                const option = document.createElement('option');
+                option.value = "";
+                option.textContent = "設定なし";
+                subSelect.appendChild(option);
+            } else {
+                subSelect.innerHTML = '<option value="">大項目を先に選んでください</option>';
+            }
+        }
+
+        // --- バックエンド（GAS Web API）設定 ---
+        const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbyyFVj5sxrAvRe70iq1CVWhKWhyD3wjucWaHP6oTpdbDlmgLWJE0zvvuN-4gSteBJzBZg/exec";
+        const GAS_API_URL = localStorage.getItem('smart_belongings_gas_url') || DEFAULT_GAS_URL;
+
+        // 通信中インジケータ
+        function setLoading(isLoading, text = "通信中...") {
+            let loader = document.getElementById('globalLoader');
+            if (!loader) {
+                loader = document.createElement('div');
+                loader.id = 'globalLoader';
+                loader.style.cssText = 'position:fixed;top:16px;right:16px;background:rgba(45,55,72,0.85);color:#fff;padding:8px 16px;border-radius:20px;font-size:13px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.15);display:flex;align-items:center;gap:8px;backdrop-filter:blur(4px);transition:opacity 0.2s;';
+                document.body.appendChild(loader);
+            }
+            if (isLoading) {
+                loader.innerHTML = `<span>⏳</span><span>${text}</span>`;
+                loader.style.display = 'flex';
+                loader.style.opacity = '1';
+            } else {
+                loader.style.opacity = '0';
+                setTimeout(() => { if (loader.style.opacity === '0') loader.style.display = 'none'; }, 200);
+            }
+        }
+
+        // GAS Web API呼び出し（POST通信）
+        async function callGasApi(action, payload = {}) {
+            setLoading(true, "保存中...");
+            try {
+                const res = await fetch(GAS_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action, ...payload })
+                });
+                const json = await res.json();
+                if (json.success && json.data) {
+                    return json.data;
+                } else {
+                    throw new Error(json.error || '処理に失敗しました');
+                }
+            } catch (err) {
+                console.error('GAS API Error:', err);
+                alert('エラーが発生しました: ' + err.message);
+                throw err;
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // 1. 初回データ取得
+        async function fetchItems() {
+            setLoading(true, "読み込み中...");
+            const cached = localStorage.getItem('cached_belongings_items');
+            if (cached) {
+                try {
+                    items = JSON.parse(cached);
+                    renderList();
+                } catch (e) {}
+            }
+
+            try {
+                const res = await fetch(GAS_API_URL + '?action=get');
+                const json = await res.json();
+                if (json.success && Array.isArray(json.data)) {
+                    items = json.data;
+                } else if (Array.isArray(json)) {
+                    items = json;
+                }
+                localStorage.setItem('cached_belongings_items', JSON.stringify(items));
+                renderList();
+            } catch (err) {
+                console.error('Fetch error:', err);
+                if (items.length === 0) {
+                    document.getElementById('itemList').innerHTML = `
+                        <div class="loading" style="color: #e53e3e; line-height: 1.6;">
+                            ⚠️ データの読み込みに失敗しました。<br>
+                            <small>${err.message}</small><br>
+                            <button onclick="fetchItems()" style="margin-top:10px;padding:6px 14px;border:none;background:#667eea;color:#fff;border-radius:6px;cursor:pointer;">再試行 🔄</button>
+                        </div>`;
+                }
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // ページロード時にデータ取得開始
+        fetchItems();
+
+        // 2. 「リストに追加する」または「更新する」ボタンが押されたときの処理
+        function saveItem() {
+            // 画面の入力欄からデータを取得
+            const categoryMain = document.getElementById('itemCategoryMain').value;
+            const categorySub = document.getElementById('itemCategorySub').value;
+            const categoryMinor = document.getElementById('itemCategoryMinor').value.trim();
+            const name = document.getElementById('itemName').value.trim();
+            const color = document.getElementById('itemColor').value.trim();
+            const brand = document.getElementById('itemBrand').value.trim();
+            const size = document.getElementById('itemSize').value.trim();
+            
+            // 買った時期の表記を整える（例：2026-05 を 2026/05 にする）
+            let dateVal = document.getElementById('itemDate').value;
+            if (dateVal && dateVal.includes('-')) {
+                dateVal = dateVal.replace('-', '/');
+            }
+            
+            const price = document.getElementById('itemPrice').value.trim();
+            const notes = document.getElementById('itemNotes').value.trim();
+
+            // 必須チェック（項目と商品名は必須にする）
+            if (categoryMain === '' || name === '') {
+                alert('「項目」と「商品名」は入力してください！');
+                return;
+            }
+
+                // 新しいアイテムのデータを作る（編集中の場合はそのID、新規なら今の時間）
+                const itemData = {
+                    id: editingId ? editingId : Date.now(), 
+                    categoryMain: categoryMain,
+                    categorySub: categorySub,
+                    categoryMinor: categoryMinor,
+                    name: name,
+                    color: color,
+                    brand: brand,
+                    size: size,
+                    date: dateVal,
+                    price: price,
+                    notes: notes
+                };
+
+                if (editingId) {
+                    // 【編集モードの場合】
+                    const index = items.findIndex(item => item.id == editingId);
+                    if (index !== -1) items[index] = itemData;
+                    
+                    cancelEdit(); // 編集モード終了・リスト画面に戻る
+                    
+                    callGasApi('update', { item: itemData }).then(newData => {
+                        items = newData;
+                        localStorage.setItem('cached_belongings_items', JSON.stringify(items));
+                        renderList();
+                    });
+
+                } else {
+                    // 【新規追加モードの場合】
+                    items.push(itemData);
+                    renderList();
+                    resetForm();
+                    switchTab('list'); // 保存後はリストへ戻る
+                    
+                    callGasApi('add', { item: itemData }).then(newData => {
+                        items = newData;
+                        localStorage.setItem('cached_belongings_items', JSON.stringify(items));
+                        renderList();
+                    });
+                }
+            }
+
+        // 3. 編集ボタンが押されたときの処理（フォームにデータをセットする）
+        function editItem(id) {
+            // 編集したいデータをリストから見つける（文字と数字の違いを吸収するために == を使用）
+            const item = items.find(i => i.id == id);
+            if (!item) return;
+
+            // フォームの各項目にデータを入れる
+            document.getElementById('itemCategoryMain').value = item.categoryMain || '';
+            updateSubCategory(); // 中項目の選択肢を連動させる
+            document.getElementById('itemCategorySub').value = item.categorySub || '';
+            document.getElementById('itemCategoryMinor').value = item.categoryMinor || '';
+            document.getElementById('itemName').value = item.name || '';
+            document.getElementById('itemColor').value = item.color || '';
+            document.getElementById('itemBrand').value = item.brand || '';
+            document.getElementById('itemSize').value = item.size || '';
+            
+            // 日付をカレンダーの形式（YYYY-MM）に戻してセットする
+            let dateVal = item.date || '';
+            if (dateVal && dateVal.includes('/')) {
+                dateVal = dateVal.replace('/', '-');
+            }
+            document.getElementById('itemDate').value = dateVal;
+            let priceVal = item.price ? item.price.toString().replace(/[^0-9.-]+/g, '') : '';
+            document.getElementById('itemPrice').value = priceVal;
+            document.getElementById('itemNotes').value = item.notes || '';
+
+            // 編集モードをONにする
+            editingId = id;
+            
+            // ボタンの見た目と文字を変える
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.textContent = 'この内容で更新する 🔄';
+            submitBtn.classList.add('update-btn');
+            
+            // キャンセルボタンを表示する
+            document.getElementById('cancelBtn').style.display = 'block';
+
+            // 画面の一番上（フォームの場所）にスクロールする
+            switchTab('input');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            
+            // リストの見た目を更新（編集中の色を変えるため）
+            renderList();
+        }
+
+        // 編集をキャンセルして元に戻す処理
+        function cancelEdit() {
+            editingId = null;
+            resetForm();
+            
+            // ボタンの見た目と文字を元に戻す
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.textContent = 'リストに追加する ✨';
+            submitBtn.classList.remove('update-btn');
+            
+            // キャンセルボタンを隠す
+            document.getElementById('cancelBtn').style.display = 'none';
+            
+            switchTab('list'); // キャンセル時はリストに戻る
+            renderList();
+        }
+
+        // フォームの中身を空っぽにする処理
+        function resetForm() {
+            document.getElementById('itemCategoryMain').value = '';
+            document.getElementById('itemCategorySub').innerHTML = '<option value="">大項目を先に選んでください</option>';
+            document.getElementById('itemCategoryMinor').value = '';
+            document.getElementById('itemName').value = '';
+            document.getElementById('itemColor').value = '';
+            document.getElementById('itemBrand').value = '';
+            document.getElementById('itemSize').value = '';
+            document.getElementById('itemDate').value = '';
+            document.getElementById('itemPrice').value = '';
+            document.getElementById('itemNotes').value = '';
+        }
+
+        // 4. 削除ボタンが押されたときの処理
+        function deleteItem(id) {
+            if (!confirm('本当に削除しますか？')) {
+                return; // キャンセルされたら何もしない
+            }
+
+            // 画面から一旦消す
+            items = items.filter(item => item.id != id);
+            renderList();
+
+            // 編集中に削除されたら編集モードも解除する
+            if (editingId == id) {
+                cancelEdit();
+            }
+
+            // 裏側のGAS APIを呼び出して削除してもらう
+            callGasApi('delete', { id: id }).then(newData => {
+                items = newData;
+                localStorage.setItem('cached_belongings_items', JSON.stringify(items));
+                renderList();
+            });
+        }
+
+        // 5. 画面にリストを描画する処理
+        function renderList() {
+            const ul = document.getElementById('itemList');
+            ul.innerHTML = '';
+
+            // 並び替えの条件を取得（まだ描画されていない場合は'category'にする）
+            const sortSelect = document.getElementById('sortOrder');
+            const sortOrder = sortSelect ? sortSelect.value : 'category';
+
+            // データのコピーを作る
+            let displayItems = [...items];
+
+            // 選択された条件に合わせて並び替えを行う
+            if (sortOrder === 'newest') {
+                displayItems.sort((a, b) => {
+                    const dateA = a.date ? a.date.replace('-', '/') : '0000/00';
+                    const dateB = b.date ? b.date.replace('-', '/') : '0000/00';
+                    if (dateA !== dateB) return dateB.localeCompare(dateA); // 新しい順
+                    return b.id - a.id;
+                });
+            } else if (sortOrder === 'oldest') {
+                displayItems.sort((a, b) => {
+                    const dateA = a.date ? a.date.replace('-', '/') : '9999/99';
+                    const dateB = b.date ? b.date.replace('-', '/') : '9999/99';
+                    if (dateA !== dateB) return dateA.localeCompare(dateB); // 古い順
+                    return a.id - b.id;
+                });
+            } else if (sortOrder === 'category') {
+                // 項目別の優先順位（衣類を一番上に）
+                const categoryOrder = { "衣類": 1, "バッグ": 2, "ガジェット": 3, "文房具": 4, "その他": 5 };
+                
+                displayItems.sort((a, b) => {
+                    // 1. 大項目（categoryMain）で並べる
+                    const orderA = categoryOrder[a.categoryMain] || 99;
+                    const orderB = categoryOrder[b.categoryMain] || 99;
+                    if (orderA !== orderB) {
+                        return orderA - orderB; 
+                    }
+                    
+                    // 2. 中項目（categorySub）でまとめて並べる（指定の優先順位）
+                    const subOrder = {
+                        "ジャケット": 1,
+                        "トップス": 2,
+                        "ボトムス": 3,
+                        "パンツ": 3,
+                        "アウター": 4,
+                        "インナー": 5,
+                        "靴": 6,
+                        "バッグ": 7,
+                        "眼鏡": 8,
+                        "その他": 99
+                    };
+                    const subA = a.categorySub || '';
+                    const subB = b.categorySub || '';
+                    if (subA !== subB) {
+                        if (a.categoryMain === "衣類" && b.categoryMain === "衣類") {
+                            const orderSubA = subOrder[subA] || 50;
+                            const orderSubB = subOrder[subB] || 50;
+                            if (orderSubA !== orderSubB) {
+                                return orderSubA - orderSubB;
+                            }
+                        }
+                        return subA.localeCompare(subB, 'ja');
+                    }
+                    // 3. 小項目（categoryMinor）で優先順位をつける
+                    const minorOrders = {
+                        "トップス": {"ドレスシャツ": 1, "ロンT（オン）": 2, "ロンT（オフ）": 3, "Tシャツ": 4, "パーカ": 5, "カーディガン": 6},
+                        "ボトムス": {"フルレングスパンツ": 1, "ジーンズ": 2, "ジョガーパンツ": 3, "ショートパンツ": 4},
+                        "パンツ": {"フルレングスパンツ": 1, "ジーンズ": 2, "ジョガーパンツ": 3, "ショートパンツ": 4},
+                        "インナー": {"シャツ": 1, "パンツ": 2, "靴下": 3},
+                        "靴": {"スニーカー": 1, "革靴": 2, "ブーツ": 3, "エスパドリーユ": 4},
+                        "バッグ": {"フラップトート": 1, "ミニトート": 2, "エディターズバッグ": 3, "ボディバッグ": 4, "キャリーケース": 5, "スーツケース": 6, "バックパック": 7},
+                        "その他": {"ベルト": 1, "帽子": 2, "パジャマ": 3, "サングラス": 4, "傘": 5, "水着": 6, "ハンカチ": 7, "風呂敷": 8, "眼鏡": 9}
+                    };
+                    const gadgetMinorOrder = {"スマホ": 1, "時計": 2, "イヤホン": 3, "PC": 4, "PC備品": 5, "その他": 6};
+
+                    if (subA === subB) {
+                        const minorA = a.categoryMinor || '';
+                        const minorB = b.categoryMinor || '';
+                        let orderMinorA = 99;
+                        let orderMinorB = 99;
+
+                        if (a.categoryMain === "ガジェット" && b.categoryMain === "ガジェット") {
+                            orderMinorA = gadgetMinorOrder[minorA] || 99;
+                            orderMinorB = gadgetMinorOrder[minorB] || 99;
+                        } else if (minorOrders[subA]) {
+                            orderMinorA = minorOrders[subA][minorA] || 99;
+                            orderMinorB = minorOrders[subA][minorB] || 99;
+                        }
+
+                        if (orderMinorA !== orderMinorB) {
+                            return orderMinorA - orderMinorB;
+                        }
+                    }
+
+                    // 3. 購入時期（date）が新しい順に並べる（未入力はずっと古い扱いにする）
+                    const dateA = a.date ? a.date.replace('-', '/') : '0000/00';
+                    const dateB = b.date ? b.date.replace('-', '/') : '0000/00';
+                    if (dateA !== dateB) {
+                        return dateB.localeCompare(dateA); // 降順（新しいものが上）
+                    }
+                    
+                    // 全て同じ場合は登録が新しい順にする
+                    return b.id - a.id; 
+                });
+            }
+
+            if (displayItems.length === 0) {
+                ul.innerHTML = '<div class="loading">登録された持ち物はありません。</div>';
+                return;
+            }
+
+            let currentCategoryGroup = '';
+
+            displayItems.forEach(item => {
+                // 項目別ソートが選ばれている場合、カテゴリのまとまりごとに見出しを挿入
+                if (sortOrder === 'category') {
+                    const main = item.categoryMain || '未分類';
+                    const sub = item.categorySub || '';
+                    
+                    let itemGroup = main;
+                    if (sub) itemGroup += ` ＞ ${sub}`;
+                    // 小項目はカードのタイトルになるため、グループ見出しからは除外
+                    
+                    if (itemGroup !== currentCategoryGroup) {
+                        const headerLi = document.createElement('li');
+                        headerLi.className = 'category-header';
+                        headerLi.innerHTML = `<h3>🏷️ ${itemGroup}</h3>`;
+                        ul.appendChild(headerLi);
+                        currentCategoryGroup = itemGroup;
+                    }
+                }
+
+                const li = document.createElement('li');
+                
+                // 現在編集中のアイテムなら色を変えるクラスをつける
+                if (item.id == editingId) {
+                    li.classList.add('editing');
+                }
+                
+                // 備考があれば表示、なければ隠すための処理
+                const notesHtml = item.notes ? `<div class="item-notes">📝 ${item.notes}</div>` : '';
+
+                // 画面にHTMLを組み立てて流し込む
+                li.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px;">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <span class="item-name" style="margin: 0;">${item.categoryMinor || item.name || '（名称未設定）'}</span>
+                                ${item.color ? `<span class="detail-badge" style="margin-bottom: 0; font-size: 11px; padding: 2px 6px;">${item.color}</span>` : ''}
+                                ${(item.categoryMinor && item.name && item.categoryMinor !== item.name) ? `<span style="font-size: 13px; color: #718096;">${item.name}</span>` : ''}
+                            </div>
+                            <div class="item-details-inline" style="margin-top: 8px;">
+                                ${sortOrder !== 'category' && item.categoryMain ? `<span class="category-tag" style="margin-bottom: 0;">${item.categoryMain}</span>` : ''}
+                                ${sortOrder !== 'category' && item.categorySub ? `<span class="subcategory-tag" style="margin-bottom: 0;">${item.categorySub}</span>` : ''}
+                                ${item.brand ? `<span class="detail-badge">🏷 ${item.brand}</span>` : ''}
+                                ${item.size ? `<span class="detail-badge">📏 ${item.size}</span>` : ''}
+                                ${item.date ? `<span class="detail-badge">📅 ${item.date}</span>` : ''}
+                                ${item.price ? `<span class="detail-badge">💰 ¥${Number(item.price.toString().replace(/[^0-9.-]+/g, '')).toLocaleString()}</span>` : ''}
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 5px; flex-shrink: 0; margin-left: 10px;">
+                            <button class="edit-btn" onclick="editItem(${item.id})">編集</button>
+                            <button class="delete-btn" onclick="deleteItem(${item.id})">削除</button>
+                        </div>
+                    </div>
+                    ${notesHtml}
+                `;
+                ul.appendChild(li);
+            });
+        }
+    </script>
+</body>
+</html>
+

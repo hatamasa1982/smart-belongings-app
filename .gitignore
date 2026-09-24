@@ -1,0 +1,8 @@
+﻿*.gsheet
+*.gdoc
+*.gslides
+desktop.ini
+Thumbs.db
+*.tmp
+~*
+.DS_Store

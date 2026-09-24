@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>私の持ち物リスト</title>
+    <style>
+        /* 全体のスタイルと背景（美しいグラデーション） */
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+            background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #333;
+        }
+
+        /* メインの白い枠（グラスモーフィズム：すりガラス風） */
+        .container {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            margin-top: 0;
+            color: #4a5568;
+            font-size: 24px;
+        }
+
+        /* 入力エリアのレイアウト */
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        /* テキスト入力欄とカテゴリ選択欄の見た目 */
+        input[type="text"], select {
+            padding: 12px;
+            border: 1px solid #cbd5e0;
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"] {
+            flex-grow: 1; /* 余ったスペースを埋める */
+        }
+
+        input[type="text"]:focus, select:focus {
+            border-color: #667eea;
+        }
+
+        /* 追加ボタンの見た目 */
+        button {
+            background-color: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+        }
+
+        button:hover {
+            background-color: #5a67d8;
+        }
+
+        button:active {
+            transform: scale(0.95); /* 押したときに少し縮むアニメーション */
+        }
+
+        /* 持ち物リストのスタイル */
+        ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        /* リストの各項目の見た目 */
+        li {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        /* ふわっと表示されるアニメーション */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* カテゴリのタグ（ラベル） */
+        .category-tag {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            color: white;
+            margin-right: 10px;
+        }
+
+        .category-洋服 { background-color: #f6ad55; }
+        .category-ガジェット { background-color: #68d391; }
+        .category-その他 { background-color: #a0aec0; }
+
+        /* 削除ボタンの見た目 */
+        .delete-btn {
+            background-color: #fc8181;
+            padding: 8px 12px;
+            font-size: 14px;
+        }
+
+        .delete-btn:hover {
+            background-color: #e53e3e;
+        }
+
+        /* アイテムのテキスト部分 */
+        .item-content {
+            display: flex;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>📦 私の持ち物リスト</h1>
+        
+        <!-- アイテムを追加するエリア -->
+        <div class="input-group">
+            <input type="text" id="itemName" placeholder="持ち物の名前（例：白いシャツ）">
+            <select id="itemCategory">
+                <option value="洋服">洋服</option>
+                <option value="ガジェット">ガジェット</option>
+                <option value="その他">その他</option>
+            </select>
+            <button onclick="addItem()">追加</button>
+        </div>
+
+        <!-- リストの上のメニュー（並び替えボタン） -->
+        <div style="text-align: right; margin-bottom: 10px;">
+            <button onclick="sortByCategory()" style="background-color: #a0aec0; font-size: 14px; padding: 8px 15px;">🔄 カテゴリ順に並び替え</button>
+        </div>
+
+        <!-- 持ち物が表示されるリスト -->
+        <ul id="itemList">
+            <!-- ここにJavaScriptでアイテムが追加されていきます -->
+        </ul>
+    </div>
+
+    <script>
+        // --- ここからJavaScript（スプレッドシートと連動する仕組み） ---
+
+        // 🌟【重要】ここに、後で取得するGASの「ウェブアプリのURL」を貼り付けます
+        const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwqvjJPBx28aJZIIHC7WS8PQr5FpHGNgmplAqOjB9_XWMxOiJTUSq9tmbah0STzhPp_/exec';
+
+        let items = [];
+        
+        // 1. ページが開かれたときに、スプレッドシートからデータを読み込む
+        loadData();
+
+        // データをスプレッドシートから取得する関数
+        async function loadData() {
+            if (GAS_WEBAPP_URL === 'ここにURLを貼り付けます') {
+                return; // URLが設定されるまでは何もしない
+            }
+
+            try {
+                // スプレッドシートからデータを取ってくる
+                const response = await fetch(GAS_WEBAPP_URL);
+                items = await response.json();
+                renderList(); // 画面を更新
+            } catch (error) {
+                console.error("データの読み込みに失敗しました", error);
+                alert("データの読み込みに失敗しました。");
+            }
+        }
+
+        // 2. 「追加」ボタンが押されたときの処理
+        async function addItem() {
+            const nameInput = document.getElementById('itemName');
+            const categorySelect = document.getElementById('itemCategory');
+            
+            const name = nameInput.value.trim();
+            const category = categorySelect.value;
+
+            if (name === '') {
+                alert('持ち物の名前を入力してください！');
+                return;
+            }
+
+            const newItem = {
+                id: Date.now(),
+                name: name,
+                category: category
+            };
+
+            // まず画面のリストに追加して表示を早くする
+            items.push(newItem);
+            renderList();
+            nameInput.value = '';
+
+            // スプレッドシートに「追加してね」とデータを送る
+            try {
+                await fetch(GAS_WEBAPP_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/plain',
+                    },
+                    body: JSON.stringify({ action: 'add', item: newItem })
+                });
+            } catch (error) {
+                console.error("保存に失敗しました", error);
+                alert("データの保存に失敗しました。");
+            }
+        }
+
+        // 3. 削除ボタンが押されたときの処理
+        async function deleteItem(id) {
+            // 画面のリストから一旦消す
+            items = items.filter(item => item.id !== id);
+            renderList();
+
+            // スプレッドシートに「削除してね」とデータを送る
+            try {
+                await fetch(GAS_WEBAPP_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/plain',
+                    },
+                    body: JSON.stringify({ action: 'delete', id: id })
+                });
+            } catch (error) {
+                console.error("削除に失敗しました", error);
+                alert("データの削除に失敗しました。");
+            }
+        }
+
+        // 4. カテゴリ順に並び替える処理
+        function sortByCategory() {
+            items.sort((a, b) => a.category.localeCompare(b.category, 'ja'));
+            renderList();
+        }
+
+        // 5. 画面にリストを描画する処理
+        function renderList() {
+            const ul = document.getElementById('itemList');
+            ul.innerHTML = '';
+
+            items.forEach(item => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <div class="item-content">
+                        <span class="category-tag category-${item.category}">${item.category}</span>
+                        <span>${item.name}</span>
+                    </div>
+                    <button class="delete-btn" onclick="deleteItem(${item.id})">削除</button>
+                `;
+                ul.appendChild(li);
+            });
+        }
+    </script>
+</body>
+</html>
