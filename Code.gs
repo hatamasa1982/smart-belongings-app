@@ -1,4 +1,4 @@
-﻿/**
+/**
  * スマート持ち物リスト Web API (Google Apps Script)
  * スプレッドシートと連携し、GitHub Pages (フロントエンド) と通信するためのバックエンドスクリプトです。
  */
@@ -42,6 +42,8 @@ function doPost(e) {
       result = updateItem(payload.item);
     } else if (action === 'delete') {
       result = removeItem(payload.id);
+    } else if (action === 'reorder') {
+      result = reorderItems(payload.orderedIds);
     } else {
       throw new Error('未定義のアクションです: ' + action);
     }
@@ -117,6 +119,51 @@ function removeItem(id) {
       break;
     }
   }
+  return getItemsData();
+}
+
+// アイテムの並び順（行順）の一括更新
+function reorderItems(orderedIds) {
+  if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+    return getItemsData();
+  }
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  const dataRange = sheet.getDataRange();
+  const values = dataRange.getValues();
+  if (values.length <= 1) return []; // ヘッダー行のみ
+
+  const header = values[0];
+  const dataRows = values.slice(1);
+
+  // IDを行データに対応付けるマップ
+  const rowMap = new Map();
+  dataRows.forEach(row => {
+    if (row[0] !== undefined && row[0] !== '') {
+      rowMap.set(String(row[0]), row);
+    }
+  });
+
+  const newRows = [];
+  // 指定された並び順に従って配置
+  orderedIds.forEach(id => {
+    const key = String(id);
+    if (rowMap.has(key)) {
+      newRows.push(rowMap.get(key));
+      rowMap.delete(key);
+    }
+  });
+
+  // 万が一リストに含まれなかった残りの行があれば末尾に追加
+  rowMap.forEach(row => {
+    newRows.push(row);
+  });
+
+  // スプレッドシートの2行目から一括上書き
+  if (newRows.length > 0) {
+    const numCols = newRows[0].length;
+    sheet.getRange(2, 1, newRows.length, numCols).setValues(newRows);
+  }
+
   return getItemsData();
 }
 

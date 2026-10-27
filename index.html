@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -356,7 +356,53 @@
             color: #718096;
             padding: 20px;
         }
+
+        /* 手動並び替え用スタイル */
+        .order-btn-group {
+            display: inline-flex;
+            flex-direction: column;
+            gap: 2px;
+            margin-right: 6px;
+        }
+        .order-btn {
+            background-color: #f7fafc;
+            color: #4a5568;
+            border: 1px solid #cbd5e0;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 10px;
+            line-height: 1;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .order-btn:hover:not(:disabled) {
+            background-color: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        .order-btn:disabled {
+            opacity: 0.25;
+            cursor: not-allowed;
+        }
+        .drag-handle {
+            cursor: grab;
+            color: #a0aec0;
+            font-size: 16px;
+            margin-right: 8px;
+            user-select: none;
+            display: inline-flex;
+            align-items: center;
+        }
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+        .sortable-ghost {
+            opacity: 0.35;
+            background-color: #e2e8f0;
+        }
     </style>
+    <!-- スマホ・PC両対応の軽量ドラッグ＆ドロップライブラリ -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 </head>
 <body>
 
@@ -457,7 +503,8 @@
         <div class="list-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
             <h2 style="font-size: 16px; color: #4a5568; margin: 0;">登録アイテム</h2>
             <select id="sortOrder" onchange="renderList()" style="padding: 5px 10px; border-radius: 6px; font-size: 14px; border: 1px solid #cbd5e0; background-color: white; width: auto;">
-                <option value="category" selected>項目別</option>
+                <option value="custom" selected>手動（お好み順）</option>
+                <option value="category">項目別</option>
                 <option value="newest">新しい順</option>
                 <option value="oldest">古い順</option>
             </select>
@@ -780,14 +827,17 @@
             });
         }
 
+        let sortableInstance = null;
+        let saveOrderTimer = null;
+
         // 5. 画面にリストを描画する処理
         function renderList() {
             const ul = document.getElementById('itemList');
             ul.innerHTML = '';
 
-            // 並び替えの条件を取得（まだ描画されていない場合は'category'にする）
+            // 並び替えの条件を取得（まだ描画されていない場合は'custom'にする）
             const sortSelect = document.getElementById('sortOrder');
-            const sortOrder = sortSelect ? sortSelect.value : 'category';
+            const sortOrder = sortSelect ? sortSelect.value : 'custom';
 
             // データのコピーを作る
             let displayItems = [...items];
@@ -892,9 +942,10 @@
                 return;
             }
 
+            const isCustomOrder = (sortOrder === 'custom');
             let currentCategoryGroup = '';
 
-            displayItems.forEach(item => {
+            displayItems.forEach((item, index) => {
                 // 項目別ソートが選ばれている場合、カテゴリのまとまりごとに見出しを挿入
                 if (sortOrder === 'category') {
                     const main = item.categoryMain || '未分類';
@@ -914,6 +965,7 @@
                 }
 
                 const li = document.createElement('li');
+                li.setAttribute('data-id', String(item.id));
                 
                 // 現在編集中のアイテムなら色を変えるクラスをつける
                 if (item.id == editingId) {
@@ -923,25 +975,38 @@
                 // 備考があれば表示、なければ隠すための処理
                 const notesHtml = item.notes ? `<div class="item-notes">📝 ${item.notes}</div>` : '';
 
+                // 手動並び替え（カスタム）時のドラッグハンドルと▲▼ボタン
+                const dragHandleHtml = isCustomOrder ? `<span class="drag-handle" title="長押しで上下にドラッグ移動">⠿</span>` : '';
+                const orderButtonsHtml = isCustomOrder ? `
+                    <div class="order-btn-group">
+                        <button class="order-btn" title="1つ上へ移動" onclick="moveItem('${item.id}', -1)" ${index === 0 ? 'disabled' : ''}>▲</button>
+                        <button class="order-btn" title="1つ下へ移動" onclick="moveItem('${item.id}', 1)" ${index === displayItems.length - 1 ? 'disabled' : ''}>▼</button>
+                    </div>
+                ` : '';
+
                 // 画面にHTMLを組み立てて流し込む
                 li.innerHTML = `
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px;">
-                        <div>
-                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                                <span class="item-name" style="margin: 0;">${item.categoryMinor || item.name || '（名称未設定）'}</span>
-                                ${item.color ? `<span class="detail-badge" style="margin-bottom: 0; font-size: 11px; padding: 2px 6px;">${item.color}</span>` : ''}
-                                ${(item.categoryMinor && item.name && item.categoryMinor !== item.name) ? `<span style="font-size: 13px; color: #718096;">${item.name}</span>` : ''}
-                            </div>
-                            <div class="item-details-inline" style="margin-top: 8px;">
-                                ${sortOrder !== 'category' && item.categoryMain ? `<span class="category-tag" style="margin-bottom: 0;">${item.categoryMain}</span>` : ''}
-                                ${sortOrder !== 'category' && item.categorySub ? `<span class="subcategory-tag" style="margin-bottom: 0;">${item.categorySub}</span>` : ''}
-                                ${item.brand ? `<span class="detail-badge">🏷 ${item.brand}</span>` : ''}
-                                ${item.size ? `<span class="detail-badge">📏 ${item.size}</span>` : ''}
-                                ${item.date ? `<span class="detail-badge">📅 ${item.date}</span>` : ''}
-                                ${item.price ? `<span class="detail-badge">💰 ¥${Number(item.price.toString().replace(/[^0-9.-]+/g, '')).toLocaleString()}</span>` : ''}
+                        <div style="display: flex; align-items: flex-start; gap: 4px; flex-grow: 1;">
+                            ${dragHandleHtml}
+                            <div style="flex-grow: 1;">
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    <span class="item-name" style="margin: 0;">${item.categoryMinor || item.name || '（名称未設定）'}</span>
+                                    ${item.color ? `<span class="detail-badge" style="margin-bottom: 0; font-size: 11px; padding: 2px 6px;">${item.color}</span>` : ''}
+                                    ${(item.categoryMinor && item.name && item.categoryMinor !== item.name) ? `<span style="font-size: 13px; color: #718096;">${item.name}</span>` : ''}
+                                </div>
+                                <div class="item-details-inline" style="margin-top: 8px;">
+                                    ${sortOrder !== 'category' && item.categoryMain ? `<span class="category-tag" style="margin-bottom: 0;">${item.categoryMain}</span>` : ''}
+                                    ${sortOrder !== 'category' && item.categorySub ? `<span class="subcategory-tag" style="margin-bottom: 0;">${item.categorySub}</span>` : ''}
+                                    ${item.brand ? `<span class="detail-badge">🏷 ${item.brand}</span>` : ''}
+                                    ${item.size ? `<span class="detail-badge">📏 ${item.size}</span>` : ''}
+                                    ${item.date ? `<span class="detail-badge">📅 ${item.date}</span>` : ''}
+                                    ${item.price ? `<span class="detail-badge">💰 ¥${Number(item.price.toString().replace(/[^0-9.-]+/g, '')).toLocaleString()}</span>` : ''}
+                                </div>
                             </div>
                         </div>
-                        <div style="display: flex; gap: 5px; flex-shrink: 0; margin-left: 10px;">
+                        <div style="display: flex; align-items: center; gap: 5px; flex-shrink: 0; margin-left: 10px;">
+                            ${orderButtonsHtml}
                             <button class="edit-btn" onclick="editItem(${item.id})">編集</button>
                             <button class="delete-btn" onclick="deleteItem(${item.id})">削除</button>
                         </div>
@@ -950,6 +1015,81 @@
                 `;
                 ul.appendChild(li);
             });
+
+            // 手動並び替えモードのとき、ドラッグ＆ドロップを有効化
+            if (sortableInstance) {
+                sortableInstance.destroy();
+                sortableInstance = null;
+            }
+            if (isCustomOrder && typeof Sortable !== 'undefined') {
+                sortableInstance = new Sortable(ul, {
+                    animation: 150,
+                    handle: '.drag-handle',
+                    ghostClass: 'sortable-ghost',
+                    filter: '.edit-btn, .delete-btn, .order-btn',
+                    preventOnFilter: false,
+                    onEnd: function () {
+                        const itemElements = ul.querySelectorAll('li[data-id]');
+                        const newOrderedIds = Array.from(itemElements).map(el => el.getAttribute('data-id'));
+
+                        // items配列を新しい順序に並び替え
+                        const itemMap = new Map(items.map(it => [String(it.id), it]));
+                        const newItems = [];
+                        newOrderedIds.forEach(id => {
+                            if (itemMap.has(id)) newItems.push(itemMap.get(id));
+                        });
+                        // 万が一リストに含まれなかった項目があれば末尾に追加
+                        items.forEach(it => {
+                            if (!newOrderedIds.includes(String(it.id))) newItems.push(it);
+                        });
+
+                        items = newItems;
+                        localStorage.setItem('cached_belongings_items', JSON.stringify(items));
+
+                        // ボタンの無効化状態（先頭の▲・末尾の▼）を更新するために再描画
+                        renderList();
+
+                        // GASへ自動同期
+                        saveOrderToGas();
+                    }
+                });
+            }
+        }
+
+        // 手動で1つ上下に移動する処理（▲▼ボタン）
+        function moveItem(id, direction) {
+            const index = items.findIndex(item => String(item.id) === String(id));
+            if (index === -1) return;
+
+            const targetIndex = index + direction;
+            if (targetIndex < 0 || targetIndex >= items.length) return;
+
+            // 要素を入れ替え
+            const temp = items[index];
+            items[index] = items[targetIndex];
+            items[targetIndex] = temp;
+
+            localStorage.setItem('cached_belongings_items', JSON.stringify(items));
+            renderList();
+
+            // GASへ自動同期
+            saveOrderToGas();
+        }
+
+        // 並び順をGoogleスプレッドシート（GAS）に保存する処理
+        function saveOrderToGas() {
+            if (saveOrderTimer) clearTimeout(saveOrderTimer);
+            saveOrderTimer = setTimeout(() => {
+                const orderedIds = items.map(item => item.id);
+                callGasApi('reorder', { orderedIds: orderedIds }).then(newData => {
+                    if (Array.isArray(newData) && newData.length > 0) {
+                        items = newData;
+                        localStorage.setItem('cached_belongings_items', JSON.stringify(items));
+                    }
+                }).catch(err => {
+                    console.error('並び順保存エラー:', err);
+                });
+            }, 300);
         }
     </script>
 </body>
