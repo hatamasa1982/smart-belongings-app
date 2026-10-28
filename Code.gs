@@ -1,29 +1,81 @@
 /**
  * スマート持ち物リスト Web API (Google Apps Script)
- * スプレッドシートと連携し、GitHub Pages (フロントエンド) と通信するためのバックエンドスクリプトです。
+ * スプレッドシートと連携し、GitHub Pages (フロントエンド) と高速・安全に同期するためのバックエンドスクリプトです。
+ *
+ * 【0ベース再設計の改善点】
+ * 1. LockService による排他制御で、連続操作（並び替え連打・連続追加/編集/削除）時のデータ競合・先祖返りを完全防止
+ * 2. 更新系APIでの Read-after-Write (getDisplayValues) 呼び出しを廃止し、GAS特有の再計算フラッシュ遅延を解消
+ * 3. 単一アイテムの追加・更新（Upsert）はA列（ID列）のみを検索して対象1行のみをピンポイント更新する超高速方式
+ * 4. GETクエリパラメータ通信とPOSTボディ通信のハイブリッド対応（302リダイレクト時のCORS/通信失敗を回避）
+ * 5. 重複ID行の自動マージ・クリーンアップと、並び替え時の末尾ゾンビ行残留バグの完全修正
  */
 
-// ① GETリクエストのハンドラー（データの取得・稼働確認）
+const COL_COUNT = 11; // A列(ID) 〜 K列(備考)
+
+/**
+ * 外部Webアプリ（GitHub Pages等）からのAPI処理共通ディスパッチャー
+ */
+function handleApiAction(action, payload) {
+  payload = payload || {};
+  action = action || 'get';
+
+  if (action === 'get' || action === 'getInitialData') {
+    return getItemsData();
+  }
+
+  if (action === 'ping') {
+    return { status: 'ok', message: 'Smart Belongings API is active.' };
+  }
+
+  // 更新系リクエストは LockService で排他制御し、同時リクエストによるデータの先祖返り・競合を完全防止する
+  const lock = LockService.getScriptLock();
+  lock.waitLock(25000);
+  try {
+    if (action === 'upsert' || action === 'add' || action === 'update') {
+      return upsertItemInSheet(payload.item);
+    } else if (action === 'delete') {
+      return removeItemFromSheet(payload.id);
+    } else if (action === 'reorder') {
+      return reorderItemsInSheet(payload.orderedIds);
+    } else {
+      throw new Error('未定義のアクションです: ' + action);
+    }
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * ① GETリクエストのハンドラー（データの取得・軽量APIアクション実行・稼働確認）
+ */
 function doGet(e) {
   try {
     const action = (e && e.parameter && e.parameter.action) || 'get';
-    let result;
-
-    if (action === 'get') {
-      result = getItemsData();
-    } else {
-      result = { status: 'ok', message: 'Smart Belongings API is active.' };
+    let payload = {};
+    if (e && e.parameter) {
+      if (e.parameter.payload) {
+        try {
+          payload = JSON.parse(e.parameter.payload);
+        } catch (jsonErr) {
+          payload = {};
+        }
+      } else {
+        payload = { ...e.parameter };
+      }
     }
 
+    const result = handleApiAction(action, payload);
     return ContentService.createTextOutput(JSON.stringify({ success: true, data: result }))
       .setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.message }))
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 }
 
-// ② POSTリクエストのハンドラー（追加・更新・削除・取得）
+/**
+ * ② POSTリクエストのハンドラー（追加・更新・削除・並び替え・取得）
+ */
 function doPost(e) {
   try {
     if (!e || !e.postData || !e.postData.contents) {
@@ -31,22 +83,8 @@ function doPost(e) {
     }
 
     const payload = JSON.parse(e.postData.contents);
-    const action = payload.action;
-    let result;
-
-    if (action === 'get') {
-      result = getItemsData();
-    } else if (action === 'add') {
-      result = addNewItem(payload.item);
-    } else if (action === 'update') {
-      result = updateItem(payload.item);
-    } else if (action === 'delete') {
-      result = removeItem(payload.id);
-    } else if (action === 'reorder') {
-      result = reorderItems(payload.orderedIds);
-    } else {
-      throw new Error('未定義のアクションです: ' + action);
-    }
+    const action = payload.action || 'get';
+    const result = handleApiAction(action, payload);
 
     return ContentService.createTextOutput(JSON.stringify({ success: true, data: result }))
       .setMimeType(ContentService.MimeType.JSON);
@@ -57,139 +95,260 @@ function doPost(e) {
 }
 
 // --------------------------------------------------------
-// 以下は、スプレッドシートのデータを読み書きする処理です
+// 以下は、スプレッドシートのデータを高速・安全に読み書きする処理です
 // --------------------------------------------------------
 
-// スプレッドシートから全アイテムを取得
-function getItemsData() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const data = sheet.getDataRange().getDisplayValues(); // すべて文字列として取得
-  const items = [];
+/**
+ * 対象のシートを取得（先頭シートまたはアクティブシート）
+ */
+function getTargetSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  return ss.getSheets()[0] || ss.getActiveSheet();
+}
 
-  // 1行目はヘッダーなので2行目から読み込み
-  for (let i = 1; i < data.length; i++) {
-    if (!data[i][0]) continue; // IDがない空行はスキップ
+/**
+ * 買った時期（date）の文字列を「YYYY/MM」形式に正規化
+ * 例: "2026/5" -> "2026/05", "2026/09/01" -> "2026/09", "2026-05" -> "2026/05"
+ */
+function normalizeDateString(rawDate) {
+  if (!rawDate) return '';
+  const str = String(rawDate).trim();
+  if (!str) return '';
 
-    items.push({
-      id: data[i][0],           // A列: ID
-      categoryMain: data[i][1], // B列: 項目（大項目）
-      categorySub: data[i][2],  // C列: 分類（中項目）
-      categoryMinor: data[i][3],// D列: 小項目
-      name: data[i][4],         // E列: 商品名
-      color: data[i][5],        // F列: 色
-      brand: data[i][6],        // G列: ブランド
-      size: data[i][7],         // H列: サイズ
-      date: data[i][8],         // I列: 買った時期
-      price: data[i][9],        // J列: 金額
-      notes: data[i][10]        // K列: 備考
-    });
+  const match = str.match(/^(\d{4})[\/\-](\d{1,2})(?:[\/\-]\d{1,2})?$/);
+  if (match) {
+    const year = match[1];
+    const month = String(parseInt(match[2], 10)).padStart(2, '0');
+    return `${year}/${month}`;
   }
+  return str;
+}
+
+/**
+ * 1行分の配列からフロントエンド用アイテムオブジェクトを生成
+ */
+function parseRowToItem(row) {
+  return {
+    id: String(row[0] || '').trim(),
+    categoryMain: String(row[1] || '').trim(),
+    categorySub: String(row[2] || '').trim(),
+    categoryMinor: String(row[3] || '').trim(),
+    name: String(row[4] || '').trim(),
+    color: String(row[5] || '').trim(),
+    brand: String(row[6] || '').trim(),
+    size: String(row[7] || '').trim(),
+    date: normalizeDateString(row[8]),
+    price: String(row[9] || '').trim(),
+    notes: String(row[10] || '').trim()
+  };
+}
+
+/**
+ * アイテムオブジェクトからスプレッドシート書き込み用の1行配列（11列）を生成
+ */
+function buildRowFromItem(item, targetId) {
+  const normalizedDate = normalizeDateString(item.date);
+  return [
+    String(targetId || item.id || '').trim(),
+    String(item.categoryMain || '').trim(),
+    String(item.categorySub || '').trim(),
+    String(item.categoryMinor || '').trim(),
+    String(item.name || '').trim(),
+    String(item.color || '').trim(),
+    String(item.brand || '').trim(),
+    String(item.size || '').trim(),
+    normalizedDate,
+    String(item.price !== undefined && item.price !== null ? item.price : '').trim(),
+    String(item.notes || '').trim()
+  ];
+}
+
+/**
+ * 2つの同一IDアイテム（重複行）のデータをマージする（primaryをベースに、空欄項目があればsecondaryで補完）
+ */
+function mergeDuplicateRowArrays(primaryRow, secondaryRow) {
+  const merged = primaryRow.slice(0, COL_COUNT);
+  while (merged.length < COL_COUNT) merged.push('');
+  for (let c = 0; c < COL_COUNT; c++) {
+    const pVal = String(merged[c] || '').trim();
+    const sVal = String(secondaryRow[c] || '').trim();
+    if (!pVal && sVal) {
+      merged[c] = secondaryRow[c];
+    }
+  }
+  merged[8] = normalizeDateString(merged[8]);
+  return merged;
+}
+
+/**
+ * スプレッドシートから全アイテムを純粋読み取りで超高速取得（1回のgetDisplayValuesのみ）
+ */
+function getItemsData() {
+  const sheet = getTargetSheet();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+
+  const data = sheet.getRange(2, 1, lastRow - 1, COL_COUNT).getDisplayValues();
+  const items = [];
+  const idToIndexMap = new Map();
+
+  for (let i = 0; i < data.length; i++) {
+    const row = data[i];
+    const id = String(row[0] || '').trim();
+    if (!id) continue;
+
+    if (idToIndexMap.has(id)) {
+      // 万一重複ID行があった場合は上位アイテムの空欄項目を補完マージ
+      const idx = idToIndexMap.get(id);
+      const existing = items[idx];
+      const candidate = parseRowToItem(row);
+      Object.keys(existing).forEach(k => {
+        if (!existing[k] && candidate[k]) existing[k] = candidate[k];
+      });
+    } else {
+      idToIndexMap.set(id, items.length);
+      items.push(parseRowToItem(row));
+    }
+  }
+
   return items;
 }
 
-// 新規アイテムの追加
-function addNewItem(item) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const rowData = [
-    item.id,
-    item.categoryMain,
-    item.categorySub,
-    item.categoryMinor,
-    item.name,
-    item.color,
-    item.brand,
-    item.size,
-    item.date,
-    item.price,
-    item.notes
-  ];
+/**
+ * アイテムの追加・更新（Upsert）をピンポイント1行書き込みで超高速実行（Read-after-Writeフラッシュなし）
+ */
+function upsertItemInSheet(item) {
+  if (!item) {
+    return { ok: false, error: 'アイテムデータが空です' };
+  }
 
-  sheet.appendRow(rowData);
-  return getItemsData();
-}
+  const sheet = getTargetSheet();
+  const lastRow = sheet.getLastRow();
+  const targetId = String(item.id || Utilities.getUuid().split('-')[0]).trim();
+  const newRowData = buildRowFromItem(item, targetId);
 
-// アイテムの削除
-function removeItem(id) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const data = sheet.getDataRange().getValues();
+  if (lastRow < 2) {
+    sheet.getRange(2, 1, 1, COL_COUNT).setValues([newRowData]);
+    return { ok: true, id: targetId, mode: 'created' };
+  }
 
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][0] == id) {
-      sheet.deleteRow(i + 1);
-      break;
+  // A列（ID列）のみを高速取得して該当行を特定
+  const ids = sheet.getRange(2, 1, lastRow - 1, 1).getDisplayValues();
+  const matchedRows = [];
+  for (let i = 0; i < ids.length; i++) {
+    if (String(ids[i][0] || '').trim() === targetId) {
+      matchedRows.push(i + 2);
     }
   }
-  return getItemsData();
+
+  if (matchedRows.length > 0) {
+    // 先頭の一致行を1回のsetValuesでピンポイント上書き更新
+    const primaryRow = matchedRows[0];
+    sheet.getRange(primaryRow, 1, 1, COL_COUNT).setValues([newRowData]);
+
+    // 万が一同一IDの重複行が2行目以降に存在していた場合は下から削除
+    for (let j = matchedRows.length - 1; j >= 1; j--) {
+      sheet.deleteRow(matchedRows[j]);
+    }
+    return { ok: true, id: targetId, mode: 'updated' };
+  } else {
+    // 新規行として末尾の1行にピンポイント追加
+    const targetRow = lastRow + 1;
+    sheet.getRange(targetRow, 1, 1, COL_COUNT).setValues([newRowData]);
+    return { ok: true, id: targetId, mode: 'created' };
+  }
 }
 
-// アイテムの並び順（行順）の一括更新
-function reorderItems(orderedIds) {
-  if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
-    return getItemsData();
+/**
+ * アイテムの削除（同一IDが複数行あった場合もすべて確実に削除し、Read-after-Writeを排除）
+ */
+function removeItemFromSheet(id) {
+  const targetId = String(id || '').trim();
+  if (!targetId) return { ok: false };
+
+  const sheet = getTargetSheet();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { ok: true, id: targetId, deletedCount: 0 };
+
+  const ids = sheet.getRange(2, 1, lastRow - 1, 1).getDisplayValues();
+  let deletedCount = 0;
+
+  // 下の行から順番に削除することで行番号ズレを防ぐ
+  for (let i = ids.length - 1; i >= 0; i--) {
+    if (String(ids[i][0] || '').trim() === targetId) {
+      sheet.deleteRow(i + 2);
+      deletedCount++;
+    }
   }
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const dataRange = sheet.getDataRange();
-  const values = dataRange.getValues();
-  if (values.length <= 1) return []; // ヘッダー行のみ
 
-  const header = values[0];
-  const dataRows = values.slice(1);
+  return {
+    ok: true,
+    id: targetId,
+    deletedCount: deletedCount
+  };
+}
 
-  // IDを行データに対応付けるマップ
+/**
+ * アイテムの並び順（行順）の一括更新（重複ID排除＆余剰末尾行の完全クリア対応）
+ */
+function reorderItemsInSheet(orderedIds) {
+  if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+    return { ok: true, count: 0 };
+  }
+
+  const sheet = getTargetSheet();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { ok: true, count: 0 };
+
+  const dataRows = sheet.getRange(2, 1, lastRow - 1, COL_COUNT).getDisplayValues();
   const rowMap = new Map();
+
+  // 上から順に走査し、同一IDの重複行があれば先頭（上位）のデータを優先しつつ空欄をマージする
   dataRows.forEach(row => {
-    if (row[0] !== undefined && row[0] !== '') {
-      rowMap.set(String(row[0]), row);
+    const id = String(row[0] || '').trim();
+    if (!id) return;
+    const row11 = row.slice(0, COL_COUNT);
+    row11[8] = normalizeDateString(row11[8]);
+
+    if (rowMap.has(id)) {
+      rowMap.set(id, mergeDuplicateRowArrays(rowMap.get(id), row11));
+    } else {
+      rowMap.set(id, row11);
     }
   });
 
   const newRows = [];
-  // 指定された並び順に従って配置
   orderedIds.forEach(id => {
-    const key = String(id);
+    const key = String(id || '').trim();
     if (rowMap.has(key)) {
       newRows.push(rowMap.get(key));
       rowMap.delete(key);
     }
   });
 
-  // 万が一リストに含まれなかった残りの行があれば末尾に追加
+  // 万が一 orderedIds に含まれなかった残りの行があれば末尾に追加
   rowMap.forEach(row => {
     newRows.push(row);
   });
 
-  // スプレッドシートの2行目から一括上書き
   if (newRows.length > 0) {
-    const numCols = newRows[0].length;
-    sheet.getRange(2, 1, newRows.length, numCols).setValues(newRows);
+    sheet.getRange(2, 1, newRows.length, COL_COUNT).setValues(newRows);
   }
 
-  return getItemsData();
-}
-
-// アイテムの更新
-function updateItem(item) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  const data = sheet.getDataRange().getValues();
-
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][0] == item.id) {
-      const rowData = [
-        item.id,
-        item.categoryMain,
-        item.categorySub,
-        item.categoryMinor,
-        item.name,
-        item.color,
-        item.brand,
-        item.size,
-        item.date,
-        item.price,
-        item.notes
-      ];
-      sheet.getRange(i + 1, 1, 1, 11).setValues([rowData]);
-      break;
-    }
+  // 重複除去などで行数が減った場合、末尾に残った古い行（ゾンビ行）を確実に消去する
+  const originalCount = lastRow - 1;
+  if (originalCount > newRows.length) {
+    sheet.getRange(2 + newRows.length, 1, originalCount - newRows.length, COL_COUNT).clearContent();
   }
-  return getItemsData();
+
+  return {
+    ok: true,
+    count: newRows.length
+  };
 }
+
+// 後方互換用関数ラッパー（GAS内部呼び出し等に対応）
+function addNewItem(item) { return upsertItemInSheet(item); }
+function updateItem(item) { return upsertItemInSheet(item); }
+function removeItem(id) { return removeItemFromSheet(id); }
+function reorderItems(orderedIds) { return reorderItemsInSheet(orderedIds); }

@@ -27,13 +27,49 @@
             width: 95%;
             max-width: 600px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        /* ヘッダー行（タイトル＋同期ステータス） */
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            gap: 8px;
         }
 
         h1 {
-            text-align: center;
-            margin-top: 0;
+            margin: 0;
             color: #4a5568;
-            font-size: 24px;
+            font-size: 22px;
+        }
+
+        .sync-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+            font-weight: bold;
+            padding: 5px 11px;
+            border-radius: 16px;
+            background: #edf2f7;
+            color: #4a5568;
+            white-space: nowrap;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            user-select: none;
+        }
+        .sync-badge:hover {
+            background: #e2e8f0;
+        }
+        .sync-badge.syncing {
+            background: #ebf8ff;
+            color: #2b6cb0;
+        }
+        .sync-badge.error {
+            background: #fff5f5;
+            color: #c53030;
         }
 
         .form-grid {
@@ -46,10 +82,6 @@
         .form-group {
             display: flex;
             flex-direction: column;
-        }
-
-        .form-group.full-width {
-            /* 縦並びなので特別な幅設定は不要 */
         }
 
         /* タブのスタイル */
@@ -78,11 +110,11 @@
             color: #667eea;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
-        
+
         /* セクションの表示切り替え */
         .section-view {
             display: none;
-            animation: fadeIn 0.3s ease-out;
+            animation: fadeIn 0.25s ease-out;
         }
         .section-view.active {
             display: block;
@@ -96,7 +128,7 @@
         }
 
         /* テキスト入力欄とカテゴリ選択欄の見た目 */
-        input[type="text"], input[type="month"], select {
+        input[type="text"], input[type="number"], input[type="month"], select {
             padding: 10px;
             border: 1px solid #cbd5e0;
             border-radius: 8px;
@@ -104,10 +136,10 @@
             outline: none;
             transition: border-color 0.3s;
             background-color: white;
-            box-sizing: border-box; /* はみ出し防止 */
+            box-sizing: border-box;
         }
 
-        input[type="text"]:focus, input[type="month"]:focus, select:focus {
+        input[type="text"]:focus, input[type="number"]:focus, input[type="month"]:focus, select:focus {
             border-color: #667eea;
             box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
         }
@@ -129,7 +161,7 @@
             font-size: 16px;
             font-weight: bold;
             cursor: pointer;
-            flex-grow: 1; /* 余った幅を埋める */
+            flex-grow: 1;
             transition: background-color 0.3s, transform 0.1s;
         }
 
@@ -153,7 +185,7 @@
             font-weight: bold;
             cursor: pointer;
             transition: background-color 0.3s, transform 0.1s;
-            display: none; /* 初期状態は非表示 */
+            display: none;
         }
         button.cancel-btn:hover { background-color: #718096; }
         button.cancel-btn:active { transform: scale(0.98); }
@@ -166,63 +198,27 @@
         }
 
         /* リストの各項目の見た目（カード風） */
-        li {
+        li.item-card {
             background: white;
             padding: 15px;
             border-radius: 12px;
             margin-bottom: 15px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-            animation: fadeIn 0.3s ease-out;
-            border-left: 5px solid #667eea; /* 左側にアクセントカラー */
+            border-left: 5px solid #667eea;
             position: relative;
+            transition: opacity 0.32s ease, transform 0.32s ease, background-color 0.2s ease;
         }
 
         /* 編集中のアイテムの見た目 */
-        li.editing {
+        li.item-card.editing {
             border-left: 5px solid #48bb78;
             background-color: #f0fff4;
         }
 
         /* ふわっと表示されるアニメーション */
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
+            from { opacity: 0; transform: translateY(6px); }
             to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* タブのスタイル */
-        .tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            background: #edf2f7;
-            padding: 5px;
-            border-radius: 12px;
-        }
-        .tab-btn {
-            flex: 1;
-            padding: 12px;
-            text-align: center;
-            font-weight: bold;
-            border-radius: 8px;
-            cursor: pointer;
-            border: none;
-            background: transparent;
-            color: #4a5568;
-            transition: all 0.3s ease;
-        }
-        .tab-btn.active {
-            background: white;
-            color: #667eea;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        
-        /* セクションの表示切り替え */
-        .section-view {
-            display: none;
-            animation: fadeIn 0.3s ease-out;
-        }
-        .section-view.active {
-            display: block;
         }
 
         /* 項目別の見出し（区切り） */
@@ -232,7 +228,6 @@
             border-left: none;
             padding: 10px 5px 0 5px;
             margin-bottom: 5px;
-            animation: none;
         }
         .category-header h3 {
             margin: 0;
@@ -267,15 +262,6 @@
             margin-left: 5px;
         }
 
-        /* 商品名と詳細を1列に並べるためのレイアウト */
-        .item-name-row {
-            display: flex;
-            align-items: center; /* 縦の真ん中で揃える */
-            flex-wrap: wrap; /* 画面が狭いときは折り返す */
-            gap: 10px;
-            margin-bottom: 10px;
-        }
-
         .item-name {
             font-size: 18px;
             font-weight: bold;
@@ -296,7 +282,7 @@
             padding: 3px 8px;
             border-radius: 6px;
             border: 1px solid #e2e8f0;
-            white-space: nowrap; /* テキストが途中で改行されないようにする */
+            white-space: nowrap;
         }
 
         .item-notes {
@@ -305,15 +291,7 @@
             background-color: #f7fafc;
             padding: 8px;
             border-radius: 6px;
-        }
-
-        /* アクションボタン群（編集・削除） */
-        .action-buttons {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            display: flex;
-            gap: 8px;
+            margin-top: 6px;
         }
 
         /* 削除ボタンの見た目 */
@@ -327,7 +305,6 @@
             cursor: pointer;
             transition: all 0.2s;
         }
-
         .delete-btn:hover {
             background-color: #fc8181;
             color: white;
@@ -344,7 +321,6 @@
             cursor: pointer;
             transition: all 0.2s;
         }
-
         .edit-btn:hover {
             background-color: #48bb78;
             color: white;
@@ -400,6 +376,30 @@
             opacity: 0.35;
             background-color: #e2e8f0;
         }
+
+        /* トースト通知 */
+        .toast-notification {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: rgba(45, 55, 72, 0.92);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 24px;
+            font-size: 13.5px;
+            font-weight: 500;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+            z-index: 10000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            white-space: nowrap;
+        }
+        .toast-notification.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
     </style>
     <!-- スマホ・PC両対応の軽量ドラッグ＆ドロップライブラリ -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
@@ -407,8 +407,14 @@
 <body>
 
     <div class="container">
-        <h1>📦 私の持ち物リスト</h1>
-        
+        <div class="app-header">
+            <h1>📦 私の持ち物リスト</h1>
+            <div id="syncBadge" class="sync-badge" onclick="fetchItems(true)" title="クリックして最新データを再取得">
+                <span id="syncIcon">☁️</span>
+                <span id="syncText">同期完了</span>
+            </div>
+        </div>
+
         <!-- タブ切り替えボタン -->
         <div class="tabs">
             <button id="tab-list" class="tab-btn active" onclick="switchTab('list')">📋 持ち物一覧</button>
@@ -418,78 +424,78 @@
         <!-- 登録・編集画面（初期は非表示） -->
         <div id="section-input" class="section-view">
             <div class="form-grid">
-            <div class="form-group">
-                <label>大項目</label>
-                <select id="itemCategoryMain" onchange="updateSubCategory()">
-                    <option value="">選択してください</option>
-                    <option value="衣類">衣類</option>
-                    <option value="ガジェット">ガジェット</option>
-                    <option value="バッグ">バッグ</option>
-                    <option value="文房具">文房具</option>
-                    <option value="その他">その他</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>中項目</label>
-                <select id="itemCategorySub">
-                    <option value="">大項目を先に選んでください</option>
-                </select>
-            </div>
-            
-            <div class="form-group full-width">
-                <label>小項目</label>
-                <input type="text" id="itemCategoryMinor" placeholder="例：スニーカー、Tシャツ、リュック など">
-            </div>
-            
-            <div class="form-group full-width">
-                <label>商品名</label>
-                <input type="text" id="itemName" placeholder="例：Bizテーラードジャケット">
-            </div>
+                <div class="form-group">
+                    <label>大項目</label>
+                    <select id="itemCategoryMain" onchange="updateSubCategory()">
+                        <option value="">選択してください</option>
+                        <option value="衣類">衣類</option>
+                        <option value="ガジェット">ガジェット</option>
+                        <option value="ステーショナリー">ステーショナリー</option>
+                        <option value="バッグ">バッグ</option>
+                        <option value="その他">その他</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>中項目</label>
+                    <select id="itemCategorySub">
+                        <option value="">大項目を先に選んでください</option>
+                    </select>
+                </div>
 
-            <div class="form-group">
-                <label>色</label>
-                <input type="text" id="itemColor" placeholder="例：ブラック">
-            </div>
-            <div class="form-group">
-                <label>ブランド</label>
-                <input type="text" id="itemBrand" placeholder="例：WWS">
-            </div>
+                <div class="form-group full-width">
+                    <label>小項目</label>
+                    <input type="text" id="itemCategoryMinor" placeholder="例：スニーカー、ロンT、手帳 など">
+                </div>
 
-            <div class="form-group">
-                <label>サイズ</label>
-                <input type="text" id="itemSize" list="sizeOptions" placeholder="例：M、26.5cm など">
-                <datalist id="sizeOptions">
-                    <option value="ONE SIZE">
-                    <option value="XS">
-                    <option value="S">
-                    <option value="M">
-                    <option value="L">
-                    <option value="XL">
-                    <option value="25.0cm">
-                    <option value="25.5cm">
-                    <option value="26.0cm">
-                    <option value="26.5cm">
-                    <option value="27.0cm">
-                    <option value="27.5cm">
-                    <option value="28.0cm">
-                </datalist>
-            </div>
-            <div class="form-group">
-                <label>買った時期</label>
-                <!-- monthタイプを使うと「2026年5月」のようにカレンダーから選べます -->
-                <input type="month" id="itemDate">
-            </div>
+                <div class="form-group full-width">
+                    <label>商品名</label>
+                    <input type="text" id="itemName" placeholder="例：Bizテーラードジャケット">
+                </div>
 
-            <div class="form-group">
-                <label>金額（円）</label>
-                <input type="number" id="itemPrice" placeholder="例：5000" inputmode="numeric">
-            </div>
+                <div class="form-group">
+                    <label>色</label>
+                    <input type="text" id="itemColor" placeholder="例：ブラック">
+                </div>
+                <div class="form-group">
+                    <label>ブランド</label>
+                    <input type="text" id="itemBrand" placeholder="例：WWS">
+                </div>
 
-            <div class="form-group full-width">
-                <label>備考</label>
-                <input type="text" id="itemNotes" placeholder="例：お気に入り、仕事用 など">
+                <div class="form-group">
+                    <label>サイズ</label>
+                    <input type="text" id="itemSize" list="sizeOptions" placeholder="例：M、25.5cm、ONE SIZE など">
+                    <datalist id="sizeOptions">
+                        <option value="ONE SIZE">
+                        <option value="XS">
+                        <option value="S">
+                        <option value="M">
+                        <option value="L">
+                        <option value="XL">
+                        <option value="24.5cm">
+                        <option value="25.0cm">
+                        <option value="25.5cm">
+                        <option value="26.0cm">
+                        <option value="26.5cm">
+                        <option value="27.0cm">
+                        <option value="27.5cm">
+                        <option value="28.0cm">
+                    </datalist>
+                </div>
+                <div class="form-group">
+                    <label>買った時期</label>
+                    <input type="month" id="itemDate">
+                </div>
+
+                <div class="form-group">
+                    <label>金額（円）</label>
+                    <input type="number" id="itemPrice" placeholder="例：9900" inputmode="numeric">
+                </div>
+
+                <div class="form-group full-width">
+                    <label>備考</label>
+                    <input type="text" id="itemNotes" placeholder="例：4着、お気に入り、仕事用 など">
+                </div>
             </div>
-        </div>
 
             <div class="button-group">
                 <button id="submitBtn" class="add-btn" onclick="saveItem()">リストに追加する ✨</button>
@@ -500,61 +506,331 @@
         <!-- 一覧画面（初期表示） -->
         <div id="section-list" class="section-view active">
             <!-- 並び替えコントロール -->
-        <div class="list-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <h2 style="font-size: 16px; color: #4a5568; margin: 0;">登録アイテム</h2>
-            <select id="sortOrder" onchange="renderList()" style="padding: 5px 10px; border-radius: 6px; font-size: 14px; border: 1px solid #cbd5e0; background-color: white; width: auto;">
-                <option value="category" selected>項目別（グループ内並び替え）</option>
-                <option value="custom">全体手動（全アイテム自由並び替え）</option>
-                <option value="newest">新しい順</option>
-                <option value="oldest">古い順</option>
-            </select>
-        </div>
+            <div class="list-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 id="totalCountHeader" style="font-size: 16px; color: #4a5568; margin: 0;">登録アイテム</h2>
+                <select id="sortOrder" onchange="renderList()" style="padding: 5px 10px; border-radius: 6px; font-size: 14px; border: 1px solid #cbd5e0; background-color: white; width: auto;">
+                    <option value="category" selected>項目別（グループ内並び替え）</option>
+                    <option value="custom">全体手動（全アイテム自由並び替え）</option>
+                    <option value="newest">新しい順</option>
+                    <option value="oldest">古い順</option>
+                </select>
+            </div>
 
-        <!-- 持ち物が表示されるリスト -->
-        <ul id="itemList">
-            <div class="loading">⏳ データを読み込んでいます...</div>
-        </ul>
+            <!-- 持ち物が表示されるリスト -->
+            <ul id="itemList">
+                <div class="loading">⏳ データを読み込んでいます...</div>
+            </ul>
         </div>
     </div>
 
-    <script>
-        // --- ここからJavaScript（GASの中で動く専用の仕組み） ---
-        let items = [];
-        let editingId = null; // 現在編集中のアイテムID（編集中じゃないときはnull）
+    <!-- トースト通知要素 -->
+    <div id="toastNotification" class="toast-notification"></div>
 
-        // タブ切り替え処理
-        function switchTab(tabId) {
-            document.querySelectorAll('.section-view').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-            
-            document.getElementById('section-' + tabId).classList.add('active');
-            document.getElementById('tab-' + tabId).classList.add('active');
-            
-            // 入力画面に切り替えた時、新規追加モードなら大項目をフォーカスする
-            if (tabId === 'input' && editingId === null && !document.getElementById('itemCategoryMain').value) {
-                document.getElementById('itemCategoryMain').focus();
+    <script>
+        // =========================================================================
+        // 0ベース新設計：確定ID採番 ＆ 直列同期キュー（Sync Queue）エンジン
+        // =========================================================================
+
+        const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbyyFVj5sxrAvRe70iq1CVWhKWhyD3wjucWaHP6oTpdbDlmgLWJE0zvvuN-4gSteBJzBZg/exec";
+        const GAS_API_URL = localStorage.getItem('smart_belongings_gas_url') || DEFAULT_GAS_URL;
+        const CACHE_KEY = 'cached_belongings_items';
+        const DELETED_IDS_SESSION_KEY = 'smart_belongings_deleted_ids_session';
+
+        let items = [];
+        let editingId = null;
+        let sortableInstances = [];
+        let saveOrderTimer = null;
+
+        // 削除済みアイテムIDのトゥームストーン（墓標）管理（古い通信結果によるゾンビ復活を100%遮断）
+        const deletedItemIds = new Set((() => {
+            try {
+                const raw = sessionStorage.getItem(DELETED_IDS_SESSION_KEY);
+                return raw ? JSON.parse(raw).map(String) : [];
+            } catch (e) {
+                return [];
+            }
+        })());
+
+        function markItemDeleted(id) {
+            if (!id) return;
+            deletedItemIds.add(String(id));
+            try {
+                sessionStorage.setItem(DELETED_IDS_SESSION_KEY, JSON.stringify(Array.from(deletedItemIds)));
+            } catch (e) {}
+        }
+
+        // スプレッドシートの既存ルール（100番台:衣類、200番台:ガジェット、300番台:ステーショナリー）に沿った確定ID即時採番
+        function generateItemId(categoryMain) {
+            const existingIds = new Set(items.map(it => String(it.id)));
+            deletedItemIds.forEach(id => existingIds.add(String(id)));
+
+            let basePrefix = 100;
+            if (categoryMain === 'ガジェット') basePrefix = 200;
+            else if (categoryMain === 'ステーショナリー' || categoryMain === '文房具') basePrefix = 300;
+            else if (categoryMain === 'その他') basePrefix = 400;
+
+            let maxInSeries = basePrefix;
+            items.forEach(it => {
+                const num = Number(it.id);
+                if (!isNaN(num) && num >= basePrefix && num < basePrefix + 100) {
+                    if (num > maxInSeries) maxInSeries = num;
+                }
+            });
+
+            const candidate = String(maxInSeries + 1);
+            if (!existingIds.has(candidate)) {
+                return candidate;
+            }
+
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                return crypto.randomUUID().split('-')[0];
+            }
+            return String(Date.now());
+        }
+
+        // 状態世代カウンター（操作ごとに加算し、起動時の古いfetch結果による画面巻き戻しを防止）
+        let mutationVersion = 0;
+        const syncQueue = [];
+        let isProcessingQueue = false;
+
+        // 同期ステータスバッジ更新
+        function setSyncStatus(text, stateType = 'idle') {
+            const badge = document.getElementById('syncBadge');
+            const icon = document.getElementById('syncIcon');
+            const label = document.getElementById('syncText');
+            if (!badge || !icon || !label) return;
+
+            badge.classList.remove('syncing', 'error');
+            if (stateType === 'syncing') {
+                badge.classList.add('syncing');
+                icon.textContent = '⏳';
+            } else if (stateType === 'error') {
+                badge.classList.add('error');
+                icon.textContent = '⚠️';
+            } else {
+                icon.textContent = '☁️';
+            }
+            label.textContent = text;
+        }
+
+        // トースト通知表示
+        let toastTimer = null;
+        function showToast(message) {
+            const toast = document.getElementById('toastNotification');
+            if (!toast) return;
+            toast.textContent = message;
+            toast.classList.add('show');
+            if (toastTimer) clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2400);
+        }
+
+        // HTMLエスケープ
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        // 買った時期の表示用正規化 ("2026-05" / "2026/5" / "2026/05/01" -> "2026/05")
+        function normalizeDateDisplay(rawDate) {
+            if (!rawDate) return '';
+            const str = String(rawDate).trim();
+            if (!str) return '';
+            const m = str.match(/^(\d{4})[\/\-](\d{1,2})(?:[\/\-]\d{1,2})?$/);
+            if (m) {
+                return `${m[1]}/${String(parseInt(m[2], 10)).padStart(2, '0')}`;
+            }
+            return str;
+        }
+
+        // 買った時期を <input type="month"> 用の "YYYY-MM" 形式に変換
+        function toMonthInputValue(rawDate) {
+            if (!rawDate) return '';
+            const str = String(rawDate).trim();
+            const m = str.match(/^(\d{4})[\/\-](\d{1,2})(?:[\/\-]\d{1,2})?$/);
+            if (m) {
+                return `${m[1]}-${String(parseInt(m[2], 10)).padStart(2, '0')}`;
+            }
+            return '';
+        }
+
+        // 金額をスプレッドシート保存用（"¥9,900" 形式）に整形
+        function formatPriceForStorage(rawPrice) {
+            if (rawPrice === null || rawPrice === undefined) return '';
+            const clean = String(rawPrice).replace(/[^0-9.-]+/g, '').trim();
+            if (!clean || isNaN(Number(clean))) return String(rawPrice).trim();
+            return '¥' + Number(clean).toLocaleString();
+        }
+
+        // ローカルキャッシュへの保存（削除済みIDは確実に除外）
+        function saveToCache() {
+            try {
+                const safeItems = items.filter(it => it && it.id && !deletedItemIds.has(String(it.id)));
+                localStorage.setItem(CACHE_KEY, JSON.stringify(safeItems));
+            } catch (e) {
+                console.warn('キャッシュ保存エラー:', e);
             }
         }
 
-        // 項目（大項目）と分類（中項目）の連動データ
+        // サーバーまたはキャッシュから受け取った配列の正規化・重複排除
+        function sanitizeItemsList(rawList) {
+            if (!Array.isArray(rawList)) return [];
+            const seen = new Set();
+            const result = [];
+            rawList.forEach(it => {
+                if (!it || !it.id) return;
+                const idStr = String(it.id).trim();
+                if (!idStr || deletedItemIds.has(idStr) || seen.has(idStr)) return;
+                seen.add(idStr);
+                result.push({
+                    ...it,
+                    id: idStr,
+                    date: normalizeDateDisplay(it.date)
+                });
+            });
+            return result;
+        }
+
+        // GAS環境判定（GASのHtmlService上で直接開かれた場合にも対応）
+        function isGasEnvironment() {
+            return typeof google !== 'undefined' && google && google.script && google.script.run;
+        }
+
+        // バックエンド通信レイヤー（GET優先・POST自動フォールバック）
+        async function callBackendApi(action, payload = {}) {
+            if (isGasEnvironment()) {
+                return new Promise((resolve, reject) => {
+                    const runner = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+                    if (action === 'get') runner.getItemsData();
+                    else if (action === 'upsert' || action === 'add' || action === 'update') runner.upsertItemInSheet(payload.item);
+                    else if (action === 'delete') runner.removeItemFromSheet(payload.id);
+                    else if (action === 'reorder') runner.reorderItemsInSheet(payload.orderedIds);
+                    else reject(new Error('未対応のアクション: ' + action));
+                });
+            }
+
+            // GAS Web App の POST 302 リダイレクト時のCORS/通信遅延を回避するため、2000文字未満はGETを第一優先で使用
+            const payloadStr = JSON.stringify(payload);
+            const sep = GAS_API_URL.includes('?') ? '&' : '?';
+            const getUrl = `${GAS_API_URL}${sep}action=${encodeURIComponent(action)}&payload=${encodeURIComponent(payloadStr)}&_t=${Date.now()}`;
+
+            if (getUrl.length < 2000) {
+                const res = await fetch(getUrl, { method: 'GET', cache: 'no-store' });
+                const json = await res.json();
+                if (json && json.success) return json.data;
+                throw new Error((json && json.error) || 'API通信に失敗しました');
+            }
+
+            // ペイロードが大きい場合はPOSTで送信
+            const res = await fetch(GAS_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action, ...payload })
+            });
+            const json = await res.json();
+            if (json && json.success) return json.data;
+            throw new Error((json && json.error) || 'API通信に失敗しました');
+        }
+
+        // 直列同期キューへのリクエスト登録（連続編集・連続並び替えの自動統合＆削除時の未送信キャンセル）
+        function enqueueMutation(action, payload = {}, options = {}) {
+            mutationVersion++;
+            const currentVer = mutationVersion;
+            const itemId = options.itemId ? String(options.itemId) : null;
+
+            if (action === 'delete' && itemId) {
+                // 削除対象アイテムの未送信の追加/更新リクエストがキューにあれば取り消す
+                for (let i = syncQueue.length - 1; i >= 0; i--) {
+                    if (syncQueue[i].itemId === itemId && syncQueue[i].action !== 'delete') {
+                        syncQueue.splice(i, 1);
+                    }
+                }
+            } else if ((action === 'upsert' || action === 'update' || action === 'add') && itemId) {
+                // 同一アイテムに対する未送信の保存リクエストがキューにあれば最新データに上書き統合
+                const existing = syncQueue.find(q => q.itemId === itemId && (q.action === 'upsert' || q.action === 'update' || q.action === 'add'));
+                if (existing) {
+                    existing.action = 'upsert';
+                    existing.payload = JSON.parse(JSON.stringify(payload));
+                    existing.version = currentVer;
+                    setSyncStatus('同期中...', 'syncing');
+                    processSyncQueue();
+                    return;
+                }
+            } else if (action === 'reorder') {
+                // 未送信の reorder リクエストがキューにあれば最新の並び順1件に統合
+                const existingReorder = syncQueue.find(q => q.action === 'reorder');
+                if (existingReorder) {
+                    existingReorder.payload = JSON.parse(JSON.stringify(payload));
+                    existingReorder.version = currentVer;
+                    setSyncStatus('同期中...', 'syncing');
+                    processSyncQueue();
+                    return;
+                }
+            }
+
+            syncQueue.push({
+                action,
+                payload: JSON.parse(JSON.stringify(payload)),
+                version: currentVer,
+                itemId
+            });
+
+            setSyncStatus('同期中...', 'syncing');
+            processSyncQueue();
+        }
+
+        // キューを1件ずつ順番（FIFO）に直列実行
+        async function processSyncQueue() {
+            if (isProcessingQueue) return;
+            isProcessingQueue = true;
+
+            while (syncQueue.length > 0) {
+                const task = syncQueue.shift();
+                setSyncStatus('同期中...', 'syncing');
+
+                try {
+                    await callBackendApi(task.action, task.payload);
+                } catch (err) {
+                    console.error(`GAS同期エラー (${task.action}):`, err);
+                    setSyncStatus('同期エラー（再試行可）', 'error');
+                    showToast('⚠️ スプレッドシートとの同期に失敗しました');
+                    isProcessingQueue = false;
+                    return;
+                }
+            }
+
+            isProcessingQueue = false;
+            if (syncQueue.length === 0) {
+                setSyncStatus('同期完了', 'idle');
+            }
+        }
+
+        // =========================================================================
+        // カテゴリ定義・連動処理（スプレッドシート実データ完全対応）
+        // =========================================================================
+
         const categoryData = {
             "衣類": ["ジャケット", "トップス", "ボトムス", "パンツ", "アウター", "インナー", "靴", "バッグ", "眼鏡", "その他"],
-            "ガジェット": [], // 中項目はスキップ可能
-            "文房具": ["筆記用具", "ノート・メモ", "収納用品", "その他"],
-            "バッグ": ["リュック・バックパック", "トートバッグ", "ショルダーバッグ", "その他"],
+            "ガジェット": ["スマホ", "時計", "イヤホン", "PC", "その他"],
+            "ステーショナリー": ["財布", "文房具", "ノート", "名刺入れ", "筆記用具", "収納用品", "その他"],
+            "バッグ": ["リュック・バックパック", "トートバッグ", "ショルダーバッグ", "ボディバッグ", "キャリーケース", "スーツケース", "その他"],
             "その他": ["その他"]
         };
 
-        // 項目が選ばれたときに、分類の選択肢を切り替える処理
-        function updateSubCategory() {
+        // 大項目が選ばれたときに中項目の選択肢を切り替える処理（カスタム値保護対応）
+        function updateSubCategory(preserveSubValue = '') {
             const mainSelect = document.getElementById('itemCategoryMain');
             const subSelect = document.getElementById('itemCategorySub');
             const selectedMain = mainSelect.value;
 
-            // 分類の選択肢を一旦リセット
             subSelect.innerHTML = '<option value="">選択してください</option>';
 
-            // 選ばれた項目に連動する分類のリストを取得して追加
             if (categoryData[selectedMain] && categoryData[selectedMain].length > 0) {
                 categoryData[selectedMain].forEach(sub => {
                     const option = document.createElement('option');
@@ -562,106 +838,95 @@
                     option.textContent = sub;
                     subSelect.appendChild(option);
                 });
-            } else if (categoryData[selectedMain] && categoryData[selectedMain].length === 0) {
-                // 中項目を持たない（ガジェットなど）場合
+            } else if (selectedMain) {
                 const option = document.createElement('option');
-                option.value = "";
-                option.textContent = "設定なし";
+                option.value = 'その他';
+                option.textContent = 'その他';
                 subSelect.appendChild(option);
             } else {
                 subSelect.innerHTML = '<option value="">大項目を先に選んでください</option>';
             }
-        }
 
-        // --- バックエンド（GAS Web API）設定 ---
-        const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbyyFVj5sxrAvRe70iq1CVWhKWhyD3wjucWaHP6oTpdbDlmgLWJE0zvvuN-4gSteBJzBZg/exec";
-        const GAS_API_URL = localStorage.getItem('smart_belongings_gas_url') || DEFAULT_GAS_URL;
-
-        // 通信中インジケータ
-        function setLoading(isLoading, text = "通信中...") {
-            let loader = document.getElementById('globalLoader');
-            if (!loader) {
-                loader = document.createElement('div');
-                loader.id = 'globalLoader';
-                loader.style.cssText = 'position:fixed;top:16px;right:16px;background:rgba(45,55,72,0.85);color:#fff;padding:8px 16px;border-radius:20px;font-size:13px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.15);display:flex;align-items:center;gap:8px;backdrop-filter:blur(4px);transition:opacity 0.2s;';
-                document.body.appendChild(loader);
-            }
-            if (isLoading) {
-                loader.innerHTML = `<span>⏳</span><span>${text}</span>`;
-                loader.style.display = 'flex';
-                loader.style.opacity = '1';
-            } else {
-                loader.style.opacity = '0';
-                setTimeout(() => { if (loader.style.opacity === '0') loader.style.display = 'none'; }, 200);
-            }
-        }
-
-        // GAS Web API呼び出し（POST通信）
-        async function callGasApi(action, payload = {}) {
-            setLoading(true, "保存中...");
-            try {
-                const res = await fetch(GAS_API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify({ action, ...payload })
-                });
-                const json = await res.json();
-                if (json.success && json.data) {
-                    return json.data;
-                } else {
-                    throw new Error(json.error || '処理に失敗しました');
+            // 編集時などに既存の中項目が選択肢リストにない場合は動的に追加して選択を保護する
+            if (preserveSubValue) {
+                const exists = Array.from(subSelect.options).some(opt => opt.value === preserveSubValue);
+                if (!exists) {
+                    const customOpt = document.createElement('option');
+                    customOpt.value = preserveSubValue;
+                    customOpt.textContent = preserveSubValue;
+                    subSelect.appendChild(customOpt);
                 }
-            } catch (err) {
-                console.error('GAS API Error:', err);
-                alert('エラーが発生しました: ' + err.message);
-                throw err;
-            } finally {
-                setLoading(false);
+                subSelect.value = preserveSubValue;
             }
         }
 
-        // 1. 初回データ取得
-        async function fetchItems() {
-            setLoading(true, "読み込み中...");
-            const cached = localStorage.getItem('cached_belongings_items');
-            if (cached) {
-                try {
-                    items = JSON.parse(cached);
+        // タブ切り替え処理
+        function switchTab(tabId) {
+            document.querySelectorAll('.section-view').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+            document.getElementById('section-' + tabId).classList.add('active');
+            document.getElementById('tab-' + tabId).classList.add('active');
+
+            if (tabId === 'input' && editingId === null && !document.getElementById('itemCategoryMain').value) {
+                document.getElementById('itemCategoryMain').focus();
+            }
+        }
+
+        // =========================================================================
+        // 1. データ取得（キャッシュ即時表示 SWR ＋ バックグラウンド最新化）
+        // =========================================================================
+
+        async function fetchItems(isManualRefresh = false) {
+            const startVersion = mutationVersion;
+
+            // 初回起動時はローカルキャッシュから0秒で即時描画
+            if (!isManualRefresh) {
+                const cached = localStorage.getItem(CACHE_KEY);
+                if (cached) {
+                    try {
+                        items = sanitizeItemsList(JSON.parse(cached));
+                        renderList();
+                    } catch (e) {}
+                }
+            }
+
+            setSyncStatus('同期中...', 'syncing');
+
+            try {
+                const data = await callBackendApi('get');
+                // 通信中にユーザーが編集・削除・並び替えを行っていない場合のみ最新データを反映（先祖返り防止）
+                if (Array.isArray(data) && mutationVersion === startVersion && syncQueue.length === 0 && !isProcessingQueue) {
+                    items = sanitizeItemsList(data);
+                    saveToCache();
                     renderList();
-                } catch (e) {}
-            }
-
-            try {
-                const res = await fetch(GAS_API_URL + '?action=get');
-                const json = await res.json();
-                if (json.success && Array.isArray(json.data)) {
-                    items = json.data;
-                } else if (Array.isArray(json)) {
-                    items = json;
+                    if (isManualRefresh) showToast('最新のデータを読み込みました 🔄');
                 }
-                localStorage.setItem('cached_belongings_items', JSON.stringify(items));
-                renderList();
+                if (syncQueue.length === 0 && !isProcessingQueue) {
+                    setSyncStatus('同期完了', 'idle');
+                }
             } catch (err) {
                 console.error('Fetch error:', err);
+                setSyncStatus('オフライン/キャッシュ', 'error');
                 if (items.length === 0) {
                     document.getElementById('itemList').innerHTML = `
                         <div class="loading" style="color: #e53e3e; line-height: 1.6;">
                             ⚠️ データの読み込みに失敗しました。<br>
-                            <small>${err.message}</small><br>
-                            <button onclick="fetchItems()" style="margin-top:10px;padding:6px 14px;border:none;background:#667eea;color:#fff;border-radius:6px;cursor:pointer;">再試行 🔄</button>
+                            <small>${escapeHtml(err.message)}</small><br>
+                            <button onclick="fetchItems(true)" style="margin-top:10px;padding:6px 14px;border:none;background:#667eea;color:#fff;border-radius:6px;cursor:pointer;">再試行 🔄</button>
                         </div>`;
                 }
-            } finally {
-                setLoading(false);
             }
         }
 
         // ページロード時にデータ取得開始
         fetchItems();
 
-        // 2. 「リストに追加する」または「更新する」ボタンが押されたときの処理
+        // =========================================================================
+        // 2. 追加・更新（Optimistic UI ＋ 直列同期キュー）
+        // =========================================================================
+
         function saveItem() {
-            // 画面の入力欄からデータを取得
             const categoryMain = document.getElementById('itemCategoryMain').value;
             const categorySub = document.getElementById('itemCategorySub').value;
             const categoryMinor = document.getElementById('itemCategoryMinor').value.trim();
@@ -669,128 +934,117 @@
             const color = document.getElementById('itemColor').value.trim();
             const brand = document.getElementById('itemBrand').value.trim();
             const size = document.getElementById('itemSize').value.trim();
-            
-            // 買った時期の表記を整える（例：2026-05 を 2026/05 にする）
-            let dateVal = document.getElementById('itemDate').value;
-            if (dateVal && dateVal.includes('-')) {
-                dateVal = dateVal.replace('-', '/');
-            }
-            
-            const price = document.getElementById('itemPrice').value.trim();
+            const dateVal = normalizeDateDisplay(document.getElementById('itemDate').value);
+            const rawPrice = document.getElementById('itemPrice').value.trim();
+            const price = rawPrice ? formatPriceForStorage(rawPrice) : '';
             const notes = document.getElementById('itemNotes').value.trim();
 
-            // 必須チェック（項目と商品名は必須にする）
-            if (categoryMain === '' || name === '') {
-                alert('「項目」と「商品名」は入力してください！');
+            if (categoryMain === '' || (name === '' && categoryMinor === '')) {
+                alert('「大項目」と「商品名（または小項目）」を入力してください！');
                 return;
             }
 
-                // 新しいアイテムのデータを作る（編集中の場合はそのID、新規なら今の時間）
-                const itemData = {
-                    id: editingId ? editingId : Date.now(), 
-                    categoryMain: categoryMain,
-                    categorySub: categorySub,
-                    categoryMinor: categoryMinor,
-                    name: name,
-                    color: color,
-                    brand: brand,
-                    size: size,
-                    date: dateVal,
-                    price: price,
-                    notes: notes
-                };
+            const isEditing = editingId !== null && editingId !== '';
+            const targetId = isEditing ? String(editingId) : generateItemId(categoryMain);
 
-                if (editingId) {
-                    // 【編集モードの場合】
-                    const index = items.findIndex(item => item.id == editingId);
-                    if (index !== -1) items[index] = itemData;
-                    
-                    cancelEdit(); // 編集モード終了・リスト画面に戻る
-                    
-                    callGasApi('update', { item: itemData }).then(newData => {
-                        items = newData;
-                        localStorage.setItem('cached_belongings_items', JSON.stringify(items));
-                        renderList();
-                    });
+            const itemData = {
+                id: targetId,
+                categoryMain: categoryMain,
+                categorySub: categorySub,
+                categoryMinor: categoryMinor,
+                name: name,
+                color: color,
+                brand: brand,
+                size: size,
+                date: dateVal,
+                price: price,
+                notes: notes
+            };
 
+            if (isEditing) {
+                const index = items.findIndex(item => String(item.id) === targetId);
+                if (index !== -1) {
+                    items[index] = itemData;
                 } else {
-                    // 【新規追加モードの場合】
                     items.push(itemData);
-                    renderList();
-                    resetForm();
-                    switchTab('list'); // 保存後はリストへ戻る
-                    
-                    callGasApi('add', { item: itemData }).then(newData => {
-                        items = newData;
-                        localStorage.setItem('cached_belongings_items', JSON.stringify(items));
-                        renderList();
-                    });
                 }
+                saveToCache();
+                cancelEdit();
+                showToast('アイテムを更新しました ✨');
+            } else {
+                items.push(itemData);
+                saveToCache();
+                resetForm();
+                switchTab('list');
+                renderList();
+                showToast('リストに追加しました ✨');
             }
 
-        // 3. 編集ボタンが押されたときの処理（フォームにデータをセットする）
+            enqueueMutation('upsert', { item: itemData }, { itemId: targetId });
+        }
+
+        // =========================================================================
+        // 3. 編集モード切り替え（カテゴリ・日付の消失防止対応）
+        // =========================================================================
+
         function editItem(id) {
-            // 編集したいデータをリストから見つける（文字と数字の違いを吸収するために == を使用）
-            const item = items.find(i => i.id == id);
+            const targetId = String(id);
+            const item = items.find(i => String(i.id) === targetId);
             if (!item) return;
 
-            // フォームの各項目にデータを入れる
-            document.getElementById('itemCategoryMain').value = item.categoryMain || '';
-            updateSubCategory(); // 中項目の選択肢を連動させる
-            document.getElementById('itemCategorySub').value = item.categorySub || '';
+            const mainSelect = document.getElementById('itemCategoryMain');
+            const mainVal = item.categoryMain || '';
+
+            // 既存の大項目が選択肢になければ動的追加して保護
+            if (mainVal && !Array.from(mainSelect.options).some(opt => opt.value === mainVal)) {
+                const customMain = document.createElement('option');
+                customMain.value = mainVal;
+                customMain.textContent = mainVal;
+                mainSelect.appendChild(customMain);
+            }
+            mainSelect.value = mainVal;
+
+            // 中項目選択肢を更新しつつ、現在の中項目値を確実に復元
+            updateSubCategory(item.categorySub || '');
+
             document.getElementById('itemCategoryMinor').value = item.categoryMinor || '';
             document.getElementById('itemName').value = item.name || '';
             document.getElementById('itemColor').value = item.color || '';
             document.getElementById('itemBrand').value = item.brand || '';
             document.getElementById('itemSize').value = item.size || '';
-            
-            // 日付をカレンダーの形式（YYYY-MM）に戻してセットする
-            let dateVal = item.date || '';
-            if (dateVal && dateVal.includes('/')) {
-                dateVal = dateVal.replace('/', '-');
-            }
-            document.getElementById('itemDate').value = dateVal;
-            let priceVal = item.price ? item.price.toString().replace(/[^0-9.-]+/g, '') : '';
+
+            // "2026/5" や "2025/10/01" などの日付も "YYYY-MM" に正規化してセット
+            document.getElementById('itemDate').value = toMonthInputValue(item.date);
+
+            const priceVal = item.price ? String(item.price).replace(/[^0-9.-]+/g, '') : '';
             document.getElementById('itemPrice').value = priceVal;
             document.getElementById('itemNotes').value = item.notes || '';
 
-            // 編集モードをONにする
-            editingId = id;
-            
-            // ボタンの見た目と文字を変える
+            editingId = targetId;
+
             const submitBtn = document.getElementById('submitBtn');
             submitBtn.textContent = 'この内容で更新する 🔄';
             submitBtn.classList.add('update-btn');
-            
-            // キャンセルボタンを表示する
             document.getElementById('cancelBtn').style.display = 'block';
 
-            // 画面の一番上（フォームの場所）にスクロールする
             switchTab('input');
             window.scrollTo({ top: 0, behavior: 'smooth' });
-            
-            // リストの見た目を更新（編集中の色を変えるため）
             renderList();
         }
 
-        // 編集をキャンセルして元に戻す処理
         function cancelEdit() {
             editingId = null;
             resetForm();
-            
-            // ボタンの見た目と文字を元に戻す
+
             const submitBtn = document.getElementById('submitBtn');
             submitBtn.textContent = 'リストに追加する ✨';
             submitBtn.classList.remove('update-btn');
-            
-            // キャンセルボタンを隠す
             document.getElementById('cancelBtn').style.display = 'none';
-            
-            switchTab('list'); // キャンセル時はリストに戻る
+
+            switchTab('list');
             renderList();
         }
 
-        // フォームの中身を空っぽにする処理
         function resetForm() {
             document.getElementById('itemCategoryMain').value = '';
             document.getElementById('itemCategorySub').innerHTML = '<option value="">大項目を先に選んでください</option>';
@@ -804,49 +1058,73 @@
             document.getElementById('itemNotes').value = '';
         }
 
-        // 4. 削除ボタンが押されたときの処理
+        // =========================================================================
+        // 4. 削除処理（トゥームストーン即時登録 ＆ フェードアウトアニメーション）
+        // =========================================================================
+
         function deleteItem(id) {
-            if (!confirm('本当に削除しますか？')) {
-                return; // キャンセルされたら何もしない
+            const targetId = String(id);
+            const targetItem = items.find(it => String(it.id) === targetId);
+            const displayName = targetItem ? (targetItem.categoryMinor || targetItem.name || 'このアイテム') : 'このアイテム';
+
+            if (!confirm(`「${displayName}」を削除しますか？`)) {
+                return;
             }
 
-            // 画面から一旦消す
-            items = items.filter(item => item.id != id);
-            renderList();
+            // 1. トゥームストーン（墓標）へ即時登録し、メモリ＆キャッシュから完全除去
+            markItemDeleted(targetId);
+            items = items.filter(item => String(item.id) !== targetId);
+            saveToCache();
 
-            // 編集中に削除されたら編集モードも解除する
-            if (editingId == id) {
+            if (editingId !== null && String(editingId) === targetId) {
                 cancelEdit();
             }
 
-            // 裏側のGAS APIを呼び出して削除してもらう
-            callGasApi('delete', { id: id }).then(newData => {
-                items = newData;
-                localStorage.setItem('cached_belongings_items', JSON.stringify(items));
+            // 2. 直列同期キューへ削除リクエストを登録
+            enqueueMutation('delete', { id: targetId }, { itemId: targetId });
+
+            // 3. スムーズなフェードアウトアニメーション後にリストを再描画
+            const cardEl = document.querySelector(`li.item-card[data-id="${CSS.escape(targetId)}"]`);
+            if (cardEl) {
+                cardEl.style.opacity = '0';
+                cardEl.style.transform = 'translateX(14px)';
+                cardEl.style.pointerEvents = 'none';
+                setTimeout(() => {
+                    renderList();
+                    showToast('削除しました 🗑️');
+                }, 300);
+            } else {
                 renderList();
-            });
+                showToast('削除しました 🗑️');
+            }
         }
 
-        let sortableInstances = [];
-        let saveOrderTimer = null;
+        // =========================================================================
+        // 5. リスト描画 ＆ 並び替え（ドラッグ＆ドロップ / ▲▼ボタン）
+        // =========================================================================
 
-        // 単一アイテムのカード要素（li）を生成する共通処理
         function createItemLi(item, canReorder, moveFnName, isFirst, isLast) {
+            const idStr = String(item.id);
+            const escapedId = escapeHtml(idStr);
             const li = document.createElement('li');
-            li.setAttribute('data-id', String(item.id));
+            li.className = 'item-card' + (editingId !== null && String(editingId) === idStr ? ' editing' : '');
+            li.setAttribute('data-id', idStr);
 
-            if (item.id == editingId) {
-                li.classList.add('editing');
-            }
-
-            const notesHtml = item.notes ? `<div class="item-notes">📝 ${item.notes}</div>` : '';
+            const notesHtml = item.notes ? `<div class="item-notes">📝 ${escapeHtml(item.notes)}</div>` : '';
             const dragHandleHtml = canReorder ? `<span class="drag-handle" title="長押しで上下にドラッグ移動">⠿</span>` : '';
             const orderButtonsHtml = canReorder ? `
                 <div class="order-btn-group">
-                    <button class="order-btn" title="1つ上へ移動" onclick="${moveFnName}('${item.id}', -1)" ${isFirst ? 'disabled' : ''}>▲</button>
-                    <button class="order-btn" title="1つ下へ移動" onclick="${moveFnName}('${item.id}', 1)" ${isLast ? 'disabled' : ''}>▼</button>
+                    <button class="order-btn" title="1つ上へ移動" onclick="${moveFnName}('${escapedId}', -1)" ${isFirst ? 'disabled' : ''}>▲</button>
+                    <button class="order-btn" title="1つ下へ移動" onclick="${moveFnName}('${escapedId}', 1)" ${isLast ? 'disabled' : ''}>▼</button>
                 </div>
             ` : '';
+
+            const primaryTitle = item.categoryMinor || item.name || '（名称未設定）';
+            const showSubName = item.categoryMinor && item.name && item.categoryMinor !== item.name;
+            const numericPrice = item.price ? String(item.price).replace(/[^0-9.-]+/g, '') : '';
+            const formattedPrice = (numericPrice && !isNaN(Number(numericPrice)))
+                ? `¥${Number(numericPrice).toLocaleString()}`
+                : item.price;
 
             li.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px;">
@@ -854,24 +1132,24 @@
                         ${dragHandleHtml}
                         <div style="flex-grow: 1;">
                             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                                <span class="item-name" style="margin: 0;">${item.categoryMinor || item.name || '（名称未設定）'}</span>
-                                ${item.color ? `<span class="detail-badge" style="margin-bottom: 0; font-size: 11px; padding: 2px 6px;">${item.color}</span>` : ''}
-                                ${(item.categoryMinor && item.name && item.categoryMinor !== item.name) ? `<span style="font-size: 13px; color: #718096;">${item.name}</span>` : ''}
+                                <span class="item-name" style="margin: 0;">${escapeHtml(primaryTitle)}</span>
+                                ${item.color ? `<span class="detail-badge" style="margin-bottom: 0; font-size: 11px; padding: 2px 6px;">${escapeHtml(item.color)}</span>` : ''}
+                                ${showSubName ? `<span style="font-size: 13px; color: #718096;">${escapeHtml(item.name)}</span>` : ''}
                             </div>
                             <div class="item-details-inline" style="margin-top: 8px;">
-                                ${item.categoryMain ? `<span class="category-tag" style="margin-bottom: 0;">${item.categoryMain}</span>` : ''}
-                                ${item.categorySub ? `<span class="subcategory-tag" style="margin-bottom: 0;">${item.categorySub}</span>` : ''}
-                                ${item.brand ? `<span class="detail-badge">🏷 ${item.brand}</span>` : ''}
-                                ${item.size ? `<span class="detail-badge">📏 ${item.size}</span>` : ''}
-                                ${item.date ? `<span class="detail-badge">📅 ${item.date}</span>` : ''}
-                                ${item.price ? `<span class="detail-badge">💰 ¥${Number(item.price.toString().replace(/[^0-9.-]+/g, '')).toLocaleString()}</span>` : ''}
+                                ${item.categoryMain ? `<span class="category-tag" style="margin-bottom: 0;">${escapeHtml(item.categoryMain)}</span>` : ''}
+                                ${item.categorySub ? `<span class="subcategory-tag" style="margin-bottom: 0;">${escapeHtml(item.categorySub)}</span>` : ''}
+                                ${item.brand ? `<span class="detail-badge">🏷 ${escapeHtml(item.brand)}</span>` : ''}
+                                ${item.size ? `<span class="detail-badge">📏 ${escapeHtml(item.size)}</span>` : ''}
+                                ${item.date ? `<span class="detail-badge">📅 ${escapeHtml(normalizeDateDisplay(item.date))}</span>` : ''}
+                                ${formattedPrice ? `<span class="detail-badge">💰 ${escapeHtml(formattedPrice)}</span>` : ''}
                             </div>
                         </div>
                     </div>
                     <div style="display: flex; align-items: center; gap: 5px; flex-shrink: 0; margin-left: 10px;">
                         ${orderButtonsHtml}
-                        <button class="edit-btn" onclick="editItem(${item.id})">編集</button>
-                        <button class="delete-btn" onclick="deleteItem(${item.id})">削除</button>
+                        <button class="edit-btn" onclick="editItem('${escapedId}')">編集</button>
+                        <button class="delete-btn" onclick="deleteItem('${escapedId}')">削除</button>
                     </div>
                 </div>
                 ${notesHtml}
@@ -879,10 +1157,14 @@
             return li;
         }
 
-        // 5. 画面にリストを描画する処理
         function renderList() {
             const container = document.getElementById('itemList');
             container.innerHTML = '';
+
+            const totalHeader = document.getElementById('totalCountHeader');
+            if (totalHeader) {
+                totalHeader.textContent = `登録アイテム (${items.length}点)`;
+            }
 
             // 既存のSortableインスタンスをすべて破棄
             sortableInstances.forEach(inst => {
@@ -904,18 +1186,18 @@
                 renderFlatList(container, [...items], true, 'moveItem');
             } else if (sortOrder === 'newest') {
                 const sorted = [...items].sort((a, b) => {
-                    const dateA = a.date ? a.date.replace('-', '/') : '0000/00';
-                    const dateB = b.date ? b.date.replace('-', '/') : '0000/00';
+                    const dateA = a.date ? normalizeDateDisplay(a.date) : '0000/00';
+                    const dateB = b.date ? normalizeDateDisplay(b.date) : '0000/00';
                     if (dateA !== dateB) return dateB.localeCompare(dateA);
-                    return b.id - a.id;
+                    return String(b.id).localeCompare(String(a.id), 'ja', { numeric: true });
                 });
                 renderFlatList(container, sorted, false);
             } else if (sortOrder === 'oldest') {
                 const sorted = [...items].sort((a, b) => {
-                    const dateA = a.date ? a.date.replace('-', '/') : '9999/99';
-                    const dateB = b.date ? b.date.replace('-', '/') : '9999/99';
+                    const dateA = a.date ? normalizeDateDisplay(a.date) : '9999/99';
+                    const dateB = b.date ? normalizeDateDisplay(b.date) : '9999/99';
                     if (dateA !== dateB) return dateA.localeCompare(dateB);
-                    return a.id - b.id;
+                    return String(a.id).localeCompare(String(b.id), 'ja', { numeric: true });
                 });
                 renderFlatList(container, sorted, false);
             }
@@ -923,10 +1205,25 @@
 
         // 項目別（見出しあり ＋ グループ内手動並び替え）の描画
         function renderCategoryGroupedList(container) {
-            const categoryOrder = { "衣類": 1, "バッグ": 2, "ガジェット": 3, "文房具": 4, "その他": 5 };
-            const subOrder = {
-                "ジャケット": 1, "トップス": 2, "ボトムス": 3, "パンツ": 3, "アウター": 4,
-                "インナー": 5, "靴": 6, "バッグ": 7, "眼鏡": 8, "その他": 99
+            const categoryOrder = {
+                "衣類": 1,
+                "バッグ": 2,
+                "ガジェット": 3,
+                "ステーショナリー": 4,
+                "文房具": 5,
+                "その他": 6
+            };
+            const subOrderMap = {
+                "衣類": {
+                    "ジャケット": 1, "トップス": 2, "ボトムス": 3, "パンツ": 3, "アウター": 4,
+                    "インナー": 5, "靴": 6, "バッグ": 7, "眼鏡": 8, "その他": 99
+                },
+                "ガジェット": {
+                    "スマホ": 1, "時計": 2, "イヤホン": 3, "PC": 4, "その他": 99
+                },
+                "ステーショナリー": {
+                    "財布": 1, "名刺入れ": 2, "文房具": 3, "筆記用具": 4, "ノート": 5, "収納用品": 6, "その他": 99
+                }
             };
 
             // グループごとに分類（元のitems配列順を維持）
@@ -947,9 +1244,10 @@
                 const orderMainB = categoryOrder[b.main] || 99;
                 if (orderMainA !== orderMainB) return orderMainA - orderMainB;
 
-                if (a.main === "衣類" && b.main === "衣類") {
-                    const orderSubA = subOrder[a.sub] || 50;
-                    const orderSubB = subOrder[b.sub] || 50;
+                const subMap = subOrderMap[a.main];
+                if (subMap) {
+                    const orderSubA = subMap[a.sub] || 50;
+                    const orderSubB = subMap[b.sub] || 50;
                     if (orderSubA !== orderSubB) return orderSubA - orderSubB;
                 }
                 return a.sub.localeCompare(b.sub, 'ja');
@@ -963,8 +1261,8 @@
 
                 const header = document.createElement('div');
                 header.className = 'category-header';
-                let title = `🏷️ ${group.main}`;
-                if (group.sub) title += ` ＞ ${group.sub}`;
+                let title = `🏷️ ${escapeHtml(group.main)}`;
+                if (group.sub) title += ` ＞ ${escapeHtml(group.sub)}`;
                 header.innerHTML = `<h3>${title} <span style="font-size:12px;font-weight:normal;color:#718096;margin-left:8px;">(${group.list.length}点)</span></h3>`;
                 groupWrapper.appendChild(header);
 
@@ -984,7 +1282,7 @@
                 groupWrapper.appendChild(subUl);
                 container.appendChild(groupWrapper);
 
-                // グループ内限定の SortableJS（他グループへの移動を防ぎ、グループ内だけで並び替え）
+                // グループ内限定の SortableJS
                 if (typeof Sortable !== 'undefined') {
                     const sortableInst = new Sortable(subUl, {
                         animation: 150,
@@ -996,7 +1294,6 @@
                             const itemElements = subUl.querySelectorAll('li[data-id]');
                             const newGroupIds = Array.from(itemElements).map(el => el.getAttribute('data-id'));
 
-                            // このグループに属するitems配列内のインデックス位置を特定
                             const groupItemIndexes = [];
                             items.forEach((it, idx) => {
                                 if ((it.categoryMain || '未分類') === group.main && (it.categorySub || '') === group.sub) {
@@ -1011,7 +1308,7 @@
                                 }
                             });
 
-                            localStorage.setItem('cached_belongings_items', JSON.stringify(items));
+                            saveToCache();
                             renderList();
                             saveOrderToGas();
                         }
@@ -1057,7 +1354,7 @@
                         });
                         items = newItems;
 
-                        localStorage.setItem('cached_belongings_items', JSON.stringify(items));
+                        saveToCache();
                         renderList();
                         saveOrderToGas();
                     }
@@ -1074,7 +1371,6 @@
             const main = item.categoryMain || '未分類';
             const sub = item.categorySub || '';
 
-            // 同じグループに属するアイテムを抽出（items配列の順序通り）
             const groupItems = items.filter(it => (it.categoryMain || '未分類') === main && (it.categorySub || '') === sub);
             const groupIndex = groupItems.findIndex(it => String(it.id) === String(id));
             if (groupIndex === -1) return;
@@ -1084,7 +1380,6 @@
 
             const targetItem = groupItems[targetGroupIndex];
 
-            // 全体 items 配列内でのインデックスを取得してスワップ
             const indexA = items.findIndex(it => String(it.id) === String(item.id));
             const indexB = items.findIndex(it => String(it.id) === String(targetItem.id));
             if (indexA === -1 || indexB === -1) return;
@@ -1093,7 +1388,7 @@
             items[indexA] = items[indexB];
             items[indexB] = temp;
 
-            localStorage.setItem('cached_belongings_items', JSON.stringify(items));
+            saveToCache();
             renderList();
             saveOrderToGas();
         }
@@ -1110,27 +1405,19 @@
             items[index] = items[targetIndex];
             items[targetIndex] = temp;
 
-            localStorage.setItem('cached_belongings_items', JSON.stringify(items));
+            saveToCache();
             renderList();
             saveOrderToGas();
         }
 
-        // 並び順をGoogleスプレッドシート（GAS）に保存する処理
+        // 並び順を直列同期キュー経由でGoogleスプレッドシート（GAS）に保存（連続クリック時はデバウンス＋キュー自動統合）
         function saveOrderToGas() {
             if (saveOrderTimer) clearTimeout(saveOrderTimer);
             saveOrderTimer = setTimeout(() => {
-                const orderedIds = items.map(item => item.id);
-                callGasApi('reorder', { orderedIds: orderedIds }).then(newData => {
-                    if (Array.isArray(newData) && newData.length > 0) {
-                        items = newData;
-                        localStorage.setItem('cached_belongings_items', JSON.stringify(items));
-                    }
-                }).catch(err => {
-                    console.error('並び順保存エラー:', err);
-                });
-            }, 300);
+                const orderedIds = items.map(item => String(item.id));
+                enqueueMutation('reorder', { orderedIds: orderedIds });
+            }, 250);
         }
     </script>
 </body>
 </html>
-
